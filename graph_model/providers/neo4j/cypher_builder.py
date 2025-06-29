@@ -156,7 +156,7 @@ class CypherBuilder:
         """Get complex properties that need special handling."""
         complex_props = {}
         
-        for field_name, field in self.node_type.model_fields.items():
+        for field_name, field in self.node_type.model_fields.items():  # type: ignore
             field_info = get_field_info(field)
             if field_info and field_info.field_type == PropertyFieldType.RELATED_NODE:
                 complex_props[field_name] = {

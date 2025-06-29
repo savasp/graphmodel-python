@@ -153,7 +153,7 @@ class Neo4jSerializer:
             if field_value is None:
                 continue
                 
-            field_info = get_field_info(type(node).model_fields[field_name])
+            field_info = get_field_info(type(node).model_fields[field_name])  # type: ignore
 
             if field_info is None:
                 # No field info - treat as simple property with field name as label
@@ -179,7 +179,7 @@ class Neo4jSerializer:
             if field_value is None:
                 continue
             
-            field_info = get_field_info(type(node).model_fields[field_name])
+            field_info = get_field_info(type(node).model_fields[field_name])  # type: ignore
             
             if field_info and field_info.field_type == PropertyFieldType.RELATED_NODE:
                 # Related node property - store metadata for later processing
@@ -228,7 +228,7 @@ class Neo4jSerializer:
             if field_value is None:
                 continue
             
-            field_info = get_field_info(type(relationship).model_fields[field_name])
+            field_info = get_field_info(type(relationship).model_fields[field_name])  # type: ignore
             
             if field_info and field_info.field_type == PropertyFieldType.EMBEDDED:
                 # Embedded property - serialize as JSON
@@ -248,7 +248,7 @@ class Neo4jSerializer:
             if field_value is None:
                 continue
             
-            field_info = get_field_info(type(relationship).model_fields[field_name])
+            field_info = get_field_info(type(relationship).model_fields[field_name])  # type: ignore
             
             if field_info and field_info.field_type == PropertyFieldType.RELATED_NODE:
                 processed_complex[field_name] = {
@@ -295,7 +295,7 @@ class Neo4jSerializer:
             for field_name, complex_data in complex_properties.items():
                 if field_name in node_data:
                     # Deserialize complex property
-                    field_info = get_field_info(node_type.model_fields[field_name])
+                    field_info = get_field_info(node_type.model_fields[field_name])  # type: ignore
                     if field_info and field_info.field_type == PropertyFieldType.EMBEDDED:
                         if field_info.storage_type == "json":
                             node_data[field_name] = json.loads(node_data[field_name])
@@ -304,7 +304,7 @@ class Neo4jSerializer:
                         node_data[field_name] = complex_data
         
         # Deserialize embedded JSON properties
-        for field_name, field_info in node_type.model_fields.items():
+        for field_name, field_info in node_type.model_fields.items():  # type: ignore
             if field_name in node_data:
                 field_meta = get_field_info(field_info)
                 if (field_meta and 
@@ -339,7 +339,7 @@ class Neo4jSerializer:
         rel_data = dict(record)
         
         # Handle embedded properties
-        for field_name, field_info in relationship_type.model_fields.items():
+        for field_name, field_info in relationship_type.model_fields.items():  # type: ignore
             if field_name in rel_data:
                 field_meta = get_field_info(field_info)
                 if (field_meta and 
@@ -360,7 +360,7 @@ class Neo4jSerializer:
         parent_alias: str,
         field_name: str,
         relationship_type: str,
-        target_alias: str = None
+        target_alias: Optional[str] = None
     ) -> str:
         """
         Generate Cypher for loading complex properties with .NET compatibility.
@@ -388,7 +388,7 @@ class Neo4jSerializer:
     @staticmethod
     def get_complex_property_return(
         field_name: str,
-        target_alias: str = None
+        target_alias: Optional[str] = None
     ) -> str:
         """
         Generate Cypher return clause for complex properties.

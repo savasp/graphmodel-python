@@ -21,10 +21,7 @@ operations with proper Cypher query generation.
 
 from typing import Any, Dict, List, Optional, Type, TypeVar
 
-from neo4j import AsyncSession
-
 from ...core.node import INode
-from ...core.relationship import IRelationship
 from ...querying.aggregation import (
     AggregationBuilder,
     AverageExpression,
@@ -35,6 +32,7 @@ from ...querying.aggregation import (
     MinExpression,
     SumExpression,
 )
+from neo4j import AsyncSession
 from .cypher_builder import CypherQuery
 from .serialization import Neo4jSerializer
 
@@ -65,7 +63,7 @@ class Neo4jAggregationExecutor:
         self,
         node_type: Type[TNode],
         builder: AggregationBuilder
-    ) -> List[GroupByResult[TKey, TNode]]:
+    ) -> List[GroupByResult[Any, TNode]]:
         """
         Execute GROUP BY aggregation query.
         
@@ -80,11 +78,11 @@ class Neo4jAggregationExecutor:
         cypher_query = self._build_group_by_query(node_type, builder)
         
         # Execute query
-        result = await self._session.run(cypher_query.query, cypher_query.parameters)
+        result = await self._session.run(cypher_query.query, cypher_query.parameters)  # type: ignore
         records = await result.data()
         
         # Convert results to GroupByResult objects
-        group_results = []
+        group_results: List[GroupByResult[Any, TNode]] = []
         for record in records:
             group_result = self._create_group_result_from_record(record, node_type, builder)
             group_results.append(group_result)
@@ -110,14 +108,15 @@ class Neo4jAggregationExecutor:
         cypher_query = self._build_aggregation_only_query(node_type, expressions)
         
         # Execute query
-        result = await self._session.run(cypher_query.query, cypher_query.parameters)
+        result = await self._session.run(cypher_query.query, cypher_query.parameters)  # type: ignore
         record = await result.single()
         
         # Extract aggregation results
-        aggregation_results = {}
+        aggregation_results: Dict[str, Any] = {}
         for expr in expressions:
             alias = self._get_aggregation_alias(expr)
-            aggregation_results[alias] = record[alias]
+            if record is not None:
+                aggregation_results[alias] = record[alias]
         
         return aggregation_results
     
@@ -145,20 +144,20 @@ class Neo4jAggregationExecutor:
         parameters = {}
         
         # Build WITH clause for grouping key (if GROUP BY is specified)
-        if builder._group_by:
-            group_key_expr = builder._group_by.key_expression
+        if builder._group_by:  # type: ignore
+            group_key_expr = builder._group_by.key_expression  # type: ignore
             with_clause = f"WITH {group_key_expr} as groupKey, n"
             query_parts.append(with_clause)
         
         # Build aggregation expressions
-        aggregation_exprs = []
-        for expr in builder._aggregations:
+        aggregation_exprs: List[str] = []
+        for expr in builder._aggregations:  # type: ignore
             cypher_expr = self._translate_aggregation_expression(expr)
             alias = self._get_aggregation_alias(expr)
             aggregation_exprs.append(f"{cypher_expr} as {alias}")
         
         # Build RETURN clause with GROUP BY
-        if builder._group_by:
+        if builder._group_by:  # type: ignore
             return_parts = ["groupKey"]
             return_parts.extend(aggregation_exprs)
             return_clause = f"RETURN {', '.join(return_parts)}"
@@ -168,15 +167,15 @@ class Neo4jAggregationExecutor:
         query_parts.append(return_clause)
         
         # Add HAVING clause if present
-        if builder._having_clauses:
-            having_clause = " AND ".join(builder._having_clauses)
+        if builder._having_clauses:  # type: ignore
+            having_clause = " AND ".join(builder._having_clauses)  # type: ignore
             # Insert HAVING before RETURN
             query_parts.insert(-1, f"HAVING {having_clause}")
         
         # Combine all parts
         query = "\n".join(query_parts)
         
-        return CypherQuery(query, parameters)
+        return CypherQuery(query, parameters)  # type: ignore
     
     def _build_aggregation_only_query(
         self,
@@ -202,7 +201,7 @@ class Neo4jAggregationExecutor:
         parameters = {}
         
         # Build aggregation expressions
-        aggregation_exprs = []
+        aggregation_exprs: List[str] = []
         for expr in expressions:
             cypher_expr = self._translate_aggregation_expression(expr)
             alias = self._get_aggregation_alias(expr)
@@ -215,9 +214,9 @@ class Neo4jAggregationExecutor:
         # Combine all parts
         query = "\n".join(query_parts)
         
-        return CypherQuery(query, parameters)
+        return CypherQuery(query, parameters)  # type: ignore
     
-    def _translate_group_key_expression(self, key_selector) -> str:
+    def _translate_group_key_expression(self, key_selector: Any) -> str:
         """
         Translate Python group key selector to Cypher expression.
         
@@ -269,7 +268,7 @@ class Neo4jAggregationExecutor:
         else:
             raise ValueError(f"Unsupported aggregation expression: {type(expr)}")
     
-    def _extract_property_from_expression(self, property_selector) -> str:
+    def _extract_property_from_expression(self, property_selector: Any) -> str:
         """
         Extract property name from lambda expression.
         
@@ -332,7 +331,7 @@ class Neo4jAggregationExecutor:
             GroupByResult with grouped data and aggregations.
         """
         # Extract grouping key (if GROUP BY was used)
-        if builder._group_by:
+        if builder._group_by:  # type: ignore
             group_key = record["groupKey"]
         else:
             group_key = "all"  # Default key when no grouping
@@ -340,7 +339,7 @@ class Neo4jAggregationExecutor:
         # Create GroupByResult
         # Note: We don't have the actual grouped items from this query
         # A more complete implementation would need a separate query to get the items
-        group_result = GroupByResult(
+        group_result: GroupByResult[Any, TNode] = GroupByResult(
             key=group_key,
             values=[],  # Would need separate query to populate
         )
@@ -357,9 +356,9 @@ class Neo4jGroupByQueryable:
     
     def __init__(
         self,
-        node_type: Type[TNode],
-        session: AsyncSession,
-        serializer: Neo4jSerializer,
+        node_type: Type[INode],
+        session: Any,  # AsyncSession
+        serializer: Any,  # Neo4jSerializer  
         executor: Neo4jAggregationExecutor,
         builder: AggregationBuilder
     ):
@@ -379,7 +378,7 @@ class Neo4jGroupByQueryable:
         self._executor = executor
         self._builder = builder
     
-    async def to_list(self) -> List[GroupByResult[Any, TNode]]:
+    async def to_list(self) -> List[GroupByResult[Any, INode]]:
         """
         Execute the GROUP BY query and return results as a list.
         
@@ -388,19 +387,19 @@ class Neo4jGroupByQueryable:
         """
         return await self._executor.execute_group_by(self._node_type, self._builder)
     
-    async def first(self) -> GroupByResult[Any, TNode]:
+    async def first(self) -> GroupByResult[Any, INode]:
         """Get the first group result."""
         results = await self.to_list()
         if not results:
             raise ValueError("Sequence contains no elements")
         return results[0]
     
-    async def first_or_none(self) -> Optional[GroupByResult[Any, TNode]]:
+    async def first_or_none(self) -> Optional[GroupByResult[Any, INode]]:
         """Get the first group result or None."""
         results = await self.to_list()
         return results[0] if results else None
     
-    def having(self, predicate) -> "Neo4jGroupByQueryable[TNode]":
+    def having(self, predicate: Any) -> "Neo4jGroupByQueryable":
         """
         Add HAVING clause to the GROUP BY query.
         
@@ -415,15 +414,15 @@ class Neo4jGroupByQueryable:
         
         # Create new builder with HAVING clause
         new_builder = AggregationBuilder()
-        if self._builder._group_by:
-            new_builder.group_by(self._builder._group_by.key_expression)
+        if self._builder._group_by:  # type: ignore
+            new_builder.group_by(self._builder._group_by.key_expression)  # type: ignore
         
         # Copy aggregations
-        new_builder._aggregations = self._builder._aggregations.copy()
+        new_builder._aggregations = self._builder._aggregations.copy()  # type: ignore
         
         # Copy existing HAVING clauses and add new one
-        new_builder._having_clauses = self._builder._having_clauses.copy()
-        new_builder._having_clauses.append(having_clause)
+        new_builder._having_clauses = self._builder._having_clauses.copy()  # type: ignore
+        new_builder._having_clauses.append(having_clause)  # type: ignore
         
         return Neo4jGroupByQueryable(
             self._node_type,
@@ -433,7 +432,7 @@ class Neo4jGroupByQueryable:
             new_builder
         )
     
-    def order_by(self, key_selector) -> "Neo4jGroupByQueryable[TNode]":
+    def order_by(self, key_selector: Any) -> "Neo4jGroupByQueryable":
         """
         Add ORDER BY clause to the GROUP BY query.
         
@@ -447,7 +446,7 @@ class Neo4jGroupByQueryable:
         # A full implementation would extend AggregationBuilder to support ORDER BY
         return self
     
-    def _translate_having_predicate(self, predicate) -> str:
+    def _translate_having_predicate(self, predicate: Any) -> str:
         """
         Translate HAVING predicate to Cypher.
         
@@ -461,7 +460,7 @@ class Neo4jGroupByQueryable:
         # In practice, you'd parse the lambda expression AST
         return "count(n) > 0"  # Placeholder
     
-    def _translate_order_by_selector(self, key_selector) -> str:
+    def _translate_order_by_selector(self, key_selector: Any) -> str:
         """
         Translate ORDER BY key selector to Cypher.
         

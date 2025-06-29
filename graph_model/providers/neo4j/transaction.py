@@ -27,6 +27,41 @@ class Neo4jTransaction(IGraphTransaction):
     def __init__(self, session: AsyncSession):
         self._session = session
         self._tx: Optional[AsyncTransaction] = None
+        self._is_committed = False
+        self._is_rolled_back = False
+
+    @property
+    def is_active(self) -> bool:
+        """Check if the transaction is currently active."""
+        return self._tx is not None and not self._is_committed and not self._is_rolled_back
+
+    @property 
+    def is_committed(self) -> bool:
+        """Check if the transaction has been committed."""
+        return self._is_committed
+
+    @property
+    def is_rolled_back(self) -> bool:
+        """Check if the transaction has been rolled back."""
+        return self._is_rolled_back
+
+    async def commit(self) -> None:
+        """Commit the transaction, making all changes permanent."""
+        if self._tx is not None and not self._is_committed and not self._is_rolled_back:
+            await self._tx.commit()
+            self._is_committed = True
+
+    async def rollback(self) -> None:
+        """Roll back the transaction, discarding all changes."""
+        if self._tx is not None and not self._is_committed and not self._is_rolled_back:
+            await self._tx.rollback()
+            self._is_rolled_back = True
+
+    async def close(self) -> None:
+        """Close the transaction, automatically rolling back if not committed."""
+        if self._tx is not None and not self._is_committed and not self._is_rolled_back:
+            await self.rollback()
+        await self._session.close()
 
     async def __aenter__(self):
         self._tx = await self._session.begin_transaction()
@@ -34,9 +69,9 @@ class Neo4jTransaction(IGraphTransaction):
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         if exc_type:
-            await self._tx.rollback()
+            await self.rollback()
         else:
-            await self._tx.commit()
+            await self.commit()
         await self._session.close()
 
     @property

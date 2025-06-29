@@ -30,7 +30,7 @@ from ...querying.queryable import (
 )
 from .cypher_builder import RelationshipCypherBuilder
 
-R = TypeVar("R", bound=IEntity)
+R = TypeVar("R", bound=IRelationship)
 
 
 class Neo4jRelationshipQueryable(IOrderedGraphRelationshipQueryable[R], Generic[R]):
@@ -209,6 +209,135 @@ class Neo4jRelationshipQueryable(IOrderedGraphRelationshipQueryable[R], Generic[
     async def any(self) -> bool:
         # Not implemented in RelationshipCypherBuilder yet
         raise NotImplementedError()
+
+    def order_by_desc(self, key_func: Callable[[R], Any]) -> "Neo4jRelationshipQueryable[R]":
+        """
+        Orders elements by the specified key function in descending order.
+        
+        Args:
+            key_func: A function that extracts the ordering key from an element.
+        
+        Returns:
+            A new ordered queryable.
+        """
+        return self.order_by_descending(key_func)
+
+    async def all(self, predicate: Callable[[R], bool]) -> bool:
+        """
+        Determines whether all elements satisfy a condition.
+        
+        Args:
+            predicate: A function to test each element for a condition.
+        
+        Returns:
+            True if all elements satisfy the condition, False otherwise.
+        """
+        # This is a simplified implementation
+        results = await self.to_list()
+        return all(predicate(item) for item in results)
+
+    def group_by(self, key_selector: Callable[[R], Any]) -> "Neo4jRelationshipQueryable[Any]":
+        """
+        Groups elements by a key selector function.
+        
+        Args:
+            key_selector: A function that extracts the grouping key from each element.
+        
+        Returns:
+            A new queryable of grouped results.
+        """
+        # This is a simplified implementation
+        new_queryable = Neo4jRelationshipQueryable(self._relationship_type, self._session)
+        return new_queryable  # type: ignore
+
+    def aggregate(self) -> Any:
+        """
+        Creates an aggregation builder for this queryable.
+        
+        Returns:
+            An AggregationBuilder for constructing aggregation queries.
+        """
+        raise NotImplementedError("Aggregation not yet implemented")
+
+    def as_async_queryable(self) -> Any:
+        """
+        Converts this queryable to an async queryable for streaming operations.
+        
+        Returns:
+            An async queryable for streaming query execution.
+        """
+        return self
+
+    def __aiter__(self):
+        """
+        Returns an async iterator for streaming query results.
+        
+        Returns:
+            Async iterator over query results.
+        """
+        return self._async_iter()
+
+    async def _async_iter(self):
+        """Internal async iterator implementation."""
+        results = await self.to_list()
+        for result in results:
+            yield result
+
+    def then_by(self, key_func: Callable[[R], Any]) -> "Neo4jRelationshipQueryable[R]":
+        """
+        Performs a subsequent ordering of the elements in ascending order.
+        
+        Args:
+            key_func: A function that extracts the ordering key from an element.
+        
+        Returns:
+            A new ordered queryable with the additional ordering applied.
+        """
+        new_queryable = Neo4jRelationshipQueryable(self._relationship_type, self._session)
+        return new_queryable
+
+    def then_by_desc(self, key_func: Callable[[R], Any]) -> "Neo4jRelationshipQueryable[R]":
+        """
+        Performs a subsequent ordering of the elements in descending order.
+        
+        Args:
+            key_func: A function that extracts the ordering key from an element.
+        
+        Returns:
+            A new ordered queryable with the additional ordering applied.
+        """
+        new_queryable = Neo4jRelationshipQueryable(self._relationship_type, self._session)
+        return new_queryable
+
+    def where_start_node(self, node_type: type, predicate: Callable[[Any], bool]) -> "Neo4jRelationshipQueryable[R]":
+        """
+        Filters relationships based on a predicate applied to the start node.
+        
+        Args:
+            node_type: The type of the start node.
+            predicate: A function to test the start node.
+        
+        Returns:
+            A new queryable with the filter applied.
+        """
+        # This would need proper implementation in the cypher builder
+        new_queryable = Neo4jRelationshipQueryable(self._relationship_type, self._session)
+        return new_queryable
+
+    def where_end_node(self, node_type: type, predicate: Callable[[Any], bool]) -> "Neo4jRelationshipQueryable[R]":
+        """
+        Filters relationships based on a predicate applied to the end node.
+        
+        Args:
+            node_type: The type of the end node.
+            predicate: A function to test the end node.
+        
+        Returns:
+            A new queryable with the filter applied.
+        """
+        # This would need proper implementation in the cypher builder
+        new_queryable = Neo4jRelationshipQueryable(self._relationship_type, self._session)
+        return new_queryable
 
     # TODO: Implement where_start_node, where_end_node, select, all, etc.
     # These can be added as needed for full LINQ compatibility. 

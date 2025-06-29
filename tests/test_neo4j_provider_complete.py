@@ -20,7 +20,7 @@ async streaming, aggregation, and .NET compatibility.
 """
 
 import asyncio
-from typing import List, Optional
+from typing import List, Optional, Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -117,7 +117,7 @@ class TestNeo4jProviderComplete:
         return Neo4jGraph()
     
     @pytest.mark.asyncio
-    async def test_pathsegments_traversal(self, mock_session, serializer):
+    async def test_pathsegments_traversal(self, mock_session: Any, serializer: Any):
         """Test PathSegments traversal execution."""
         # Create test data
         john = Person(id="person1", name="John Doe", age=30)
@@ -164,7 +164,7 @@ class TestNeo4jProviderComplete:
         assert "start.id IN $start_ids" in query
     
     @pytest.mark.asyncio
-    async def test_async_streaming(self, mock_session, serializer):
+    async def test_async_streaming(self, mock_session: Any, serializer: Any):
         """Test async streaming functionality."""
         # Mock async streaming result with proper async iterator
         mock_result = AsyncMock()
@@ -197,7 +197,7 @@ class TestNeo4jProviderComplete:
         assert results[1].name == "Jane Smith"
     
     @pytest.mark.asyncio
-    async def test_async_queryable_operations(self, mock_session, serializer):
+    async def test_async_queryable_operations(self, mock_session: Any, serializer: Any):
         """Test async queryable LINQ-style operations."""
         # Mock async streaming result with proper async iterator
         mock_result = AsyncMock()

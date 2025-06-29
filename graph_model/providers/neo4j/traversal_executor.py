@@ -78,7 +78,7 @@ class Neo4jTraversalExecutor:
         cypher_query = self._build_path_segments_query(traversal)
         
         # Execute query
-        result = await self._session.run(cypher_query.query, cypher_query.parameters)
+        result = await self._session.run(cypher_query.query, cypher_query.parameters)  # type: ignore
         records = await result.data()
         
         # Convert results to PathSegments
@@ -106,14 +106,15 @@ class Neo4jTraversalExecutor:
         cypher_query = self._build_node_traversal_query(traversal)
         
         # Execute query
-        result = await self._session.run(cypher_query.query, cypher_query.parameters)
+        result = await self._session.run(cypher_query.query, cypher_query.parameters)  # type: ignore
         records = await result.data()
         
         # Convert results to nodes
         nodes = []
         for record in records:
-            node = self._create_node_from_record(record, traversal._target_node_type)
-            nodes.append(node)
+            if traversal._target_node_type is not None:
+                node = self._create_node_from_record(record, traversal._target_node_type)
+                nodes.append(node)
         
         return nodes
     
@@ -134,14 +135,15 @@ class Neo4jTraversalExecutor:
         cypher_query = self._build_relationship_traversal_query(traversal)
         
         # Execute query
-        result = await self._session.run(cypher_query.query, cypher_query.parameters)
+        result = await self._session.run(cypher_query.query, cypher_query.parameters)  # type: ignore
         records = await result.data()
         
         # Convert results to relationships
         relationships = []
         for record in records:
-            relationship = self._create_relationship_from_record(record, traversal._relationship_type)
-            relationships.append(relationship)
+            if traversal._relationship_type is not None:
+                relationship = self._create_relationship_from_record(record, traversal._relationship_type)
+                relationships.append(relationship)
         
         return relationships
     
@@ -159,7 +161,7 @@ class Neo4jTraversalExecutor:
         cypher_query = self._build_path_traversal_query(traversal)
         
         # Execute query
-        result = await self._session.run(cypher_query.query, cypher_query.parameters)
+        result = await self._session.run(cypher_query.query, cypher_query.parameters)  # type: ignore
         records = await result.data()
         
         # Convert results to paths
@@ -309,23 +311,35 @@ class Neo4jTraversalExecutor:
         
         # Deserialize relationship
         rel_data = record["r"]
-        relationship = self._serializer.deserialize_relationship(
-            rel_data, 
-            traversal._relationship_type
-        )
+        if traversal._relationship_type is not None:
+            relationship = self._serializer.deserialize_relationship(
+                rel_data, 
+                traversal._relationship_type
+            )
+        else:
+            # Skip this segment if we don't have a proper relationship type
+            return None  # type: ignore
         
         # Deserialize target node
         target_data = record["target"]
-        target_node = self._serializer.deserialize_node(
-            target_data, 
-            traversal._target_node_type
-        )
+        if traversal._target_node_type is not None:
+            target_node = self._serializer.deserialize_node(
+                target_data, 
+                traversal._target_node_type
+            )
+        else:
+            # Skip this segment if we don't have a proper target node type
+            return None  # type: ignore
         
-        return GraphPathSegment(
-            start_node=start_node,
-            relationship=relationship,
-            end_node=target_node
-        )
+        # Only create segment if we have all required components
+        if relationship is not None and target_node is not None:
+            return GraphPathSegment(  # type: ignore
+                start_node=start_node,
+                relationship=relationship,
+                end_node=target_node
+            )
+        else:
+            return None  # type: ignore
     
     def _create_node_from_record(self, record: Dict[str, Any], node_type: Type[INode]) -> INode:
         """Create a node from a Neo4j record."""
@@ -358,11 +372,13 @@ class Neo4jTraversalExecutor:
                 # Other nodes are target node type
                 node_type = traversal._target_node_type
             
-            node = self._serializer.deserialize_node(node_data, node_type)
-            nodes.append(node)
+            if node_type is not None:
+                node = self._serializer.deserialize_node(node_data, node_type)
+                nodes.append(node)
         
         for rel_data in path_data.relationships:
-            relationship = self._serializer.deserialize_relationship(rel_data, traversal._relationship_type)
-            relationships.append(relationship)
+            if traversal._relationship_type is not None:
+                relationship = self._serializer.deserialize_relationship(rel_data, traversal._relationship_type)
+                relationships.append(relationship)
         
         return TraversalPath(nodes=nodes, relationships=relationships) 

@@ -89,7 +89,7 @@ class Neo4jGraph(IGraph[TNode, TRelationship]):
             
             # Execute query
             if transaction:
-                tx = transaction.transaction
+                tx = transaction.transaction  # type: ignore
             else:
                 session = Neo4jDriver.session()
                 tx = await session.begin_transaction()
@@ -129,7 +129,7 @@ class Neo4jGraph(IGraph[TNode, TRelationship]):
             """
             
             if transaction:
-                tx = transaction.transaction
+                tx = transaction.transaction  # type: ignore
             else:
                 session = Neo4jDriver.session()
                 tx = await session.begin_transaction()
@@ -183,7 +183,7 @@ class Neo4jGraph(IGraph[TNode, TRelationship]):
             
             # Execute query
             if transaction:
-                tx = transaction.transaction
+                tx = transaction.transaction  # type: ignore
             else:
                 session = Neo4jDriver.session()
                 tx = await session.begin_transaction()
@@ -227,7 +227,7 @@ class Neo4jGraph(IGraph[TNode, TRelationship]):
             """
             
             if transaction:
-                tx = transaction.transaction
+                tx = transaction.transaction  # type: ignore
             else:
                 session = Neo4jDriver.session()
                 tx = await session.begin_transaction()
@@ -273,7 +273,7 @@ class Neo4jGraph(IGraph[TNode, TRelationship]):
             
             # Execute query
             if transaction:
-                tx = transaction.transaction
+                tx = transaction.transaction  # type: ignore
             else:
                 session = Neo4jDriver.session()
                 tx = await session.begin_transaction()
@@ -315,7 +315,7 @@ class Neo4jGraph(IGraph[TNode, TRelationship]):
             """
             
             if transaction:
-                tx = transaction.transaction
+                tx = transaction.transaction  # type: ignore
             else:
                 session = Neo4jDriver.session()
                 tx = await session.begin_transaction()
@@ -366,7 +366,7 @@ class Neo4jGraph(IGraph[TNode, TRelationship]):
             
             # Execute query
             if transaction:
-                tx = transaction.transaction
+                tx = transaction.transaction  # type: ignore
             else:
                 session = Neo4jDriver.session()
                 tx = await session.begin_transaction()
@@ -407,7 +407,7 @@ class Neo4jGraph(IGraph[TNode, TRelationship]):
             """
             
             if transaction:
-                tx = transaction.transaction
+                tx = transaction.transaction  # type: ignore
             else:
                 session = Neo4jDriver.session()
                 tx = await session.begin_transaction()
@@ -440,12 +440,12 @@ class Neo4jGraph(IGraph[TNode, TRelationship]):
     def nodes(self, node_type: Type[TNode]) -> IGraphNodeQueryable[TNode]:
         """Get a queryable for nodes of the specified type."""
         session = Neo4jDriver.session()
-        return Neo4jNodeQueryable(node_type, session)
+        return Neo4jNodeQueryable(node_type, session)  # type: ignore
     
     def relationships(self, relationship_type: Type[TRelationship]) -> IGraphRelationshipQueryable[TRelationship]:
         """Get a queryable for relationships of the specified type."""
         session = Neo4jDriver.session()
-        return Neo4jRelationshipQueryable(relationship_type, session)
+        return Neo4jRelationshipQueryable(relationship_type, session)  # type: ignore
     
     async def _create_complex_properties(
         self, 
@@ -498,7 +498,7 @@ class Neo4jGraph(IGraph[TNode, TRelationship]):
         CREATE (parent)-[r:{relationship_type} {{SequenceNumber: $sequence}}]->(complex:{label} $props)
         """
         
-        await tx.run(cypher, {
+        await tx.run(cypher, {  # type: ignore
             "parent_id": parent_id,
             "sequence": sequence,
             "props": props

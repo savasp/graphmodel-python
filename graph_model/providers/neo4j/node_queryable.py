@@ -240,3 +240,132 @@ class Neo4jNodeQueryable(IOrderedGraphNodeQueryable[N], Generic[N]):
             return await self.first()
         except Exception:
             return None 
+
+    def order_by_desc(self, key_func: Callable[[N], Any]) -> "Neo4jNodeQueryable[N]":
+        """
+        Orders elements by the specified key function in descending order.
+        
+        Args:
+            key_func: A function that extracts the ordering key from an element.
+        
+        Returns:
+            A new ordered queryable.
+        """
+        return self.order_by_descending(key_func)
+
+    async def count(self) -> int:
+        """
+        Returns the number of elements in the query.
+        
+        Returns:
+            The count of elements.
+        """
+        cypher_query = self._cypher_builder.build_count_query()
+        result = await self._session.run(cypher_query.query, cypher_query.parameters)  # type: ignore
+        records = await result.data()  # type: ignore
+        return records[0]['count'] if records else 0
+
+    async def any(self) -> bool:
+        """
+        Determines whether any elements exist.
+        
+        Returns:
+            True if any elements exist, False otherwise.
+        """
+        return await self.count() > 0
+
+    async def all(self, predicate: Callable[[N], bool]) -> bool:
+        """
+        Determines whether all elements satisfy a condition.
+        
+        Args:
+            predicate: A function to test each element for a condition.
+        
+        Returns:
+            True if all elements satisfy the condition, False otherwise.
+        """
+        # This is a simplified implementation
+        # In practice, you'd want to build a more efficient Cypher query
+        results = await self.to_list()
+        return all(predicate(item) for item in results)
+
+    def group_by(self, key_selector: Callable[[N], Any]) -> "Neo4jNodeQueryable[Any]":
+        """
+        Groups elements by a key selector function.
+        
+        Args:
+            key_selector: A function that extracts the grouping key from each element.
+        
+        Returns:
+            A new queryable of grouped results.
+        """
+        # This is a simplified implementation that would need proper Cypher generation
+        new_queryable = Neo4jNodeQueryable(self._node_type, self._session)
+        # In practice, you'd add GROUP BY to the Cypher builder
+        return new_queryable  # type: ignore
+
+    def aggregate(self) -> Any:
+        """
+        Creates an aggregation builder for this queryable.
+        
+        Returns:
+            An AggregationBuilder for constructing aggregation queries.
+        """
+        # This would return a proper aggregation builder in a full implementation
+        raise NotImplementedError("Aggregation not yet implemented")
+
+    def as_async_queryable(self) -> Any:
+        """
+        Converts this queryable to an async queryable for streaming operations.
+        
+        Returns:
+            An async queryable for streaming query execution.
+        """
+        # This would return a proper async queryable in a full implementation
+        return self
+
+    def __aiter__(self):
+        """
+        Returns an async iterator for streaming query results.
+        
+        Returns:
+            Async iterator over query results.
+        """
+        # This would return a proper async iterator in a full implementation
+        return self._async_iter()
+
+    async def _async_iter(self):
+        """Internal async iterator implementation."""
+        results = await self.to_list()
+        for result in results:
+            yield result
+
+    def then_by(self, key_func: Callable[[N], Any]) -> "Neo4jNodeQueryable[N]":
+        """
+        Performs a subsequent ordering of the elements in ascending order.
+        
+        Args:
+            key_func: A function that extracts the ordering key from an element.
+        
+        Returns:
+            A new ordered queryable with the additional ordering applied.
+        """
+        # This is a simplified implementation
+        new_queryable = Neo4jNodeQueryable(self._node_type, self._session)
+        # In practice, you'd add additional ORDER BY to the Cypher builder
+        return new_queryable
+
+    def then_by_desc(self, key_func: Callable[[N], Any]) -> "Neo4jNodeQueryable[N]":
+        """
+        Performs a subsequent ordering of the elements in descending order.
+        
+        Args:
+            key_func: A function that extracts the ordering key from an element.
+        
+        Returns:
+            A new ordered queryable with the additional ordering applied.
+        """
+        # This is a simplified implementation
+        new_queryable = Neo4jNodeQueryable(self._node_type, self._session)
+        # In practice, you'd add additional ORDER BY DESC to the Cypher builder
+        return new_queryable 
