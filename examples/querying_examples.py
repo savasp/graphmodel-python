@@ -19,6 +19,7 @@ This shows how the same query syntax translates to different underlying operatio
 depending on whether properties are embedded or stored as related nodes.
 """
 
+import asyncio
 from dataclasses import dataclass
 from datetime import datetime
 from typing import List, Optional
@@ -26,40 +27,42 @@ from typing import List, Optional
 from graph_model import (
     Node,
     Relationship,
-    RelationshipDirection,
     embedded_field,
     node,
     property_field,
     related_node_field,
     relationship,
 )
+from graph_model.providers.neo4j import Neo4jDriver, Neo4jGraph
 
 
-@dataclass
-class ContactInfo:
-    email: str
-    phone: Optional[str] = None
-    city: str = ""
+@node(label="ContactInfo")
+class ContactInfo(Node):
+    id: str = property_field()
+    email: str = property_field()
+    phone: Optional[str] = property_field(default=None)
+    city: str = property_field()
 
 
-@dataclass
-class Address:
-    street: str
-    city: str
-    state: str
-    country: str
-    zip_code: str
+@node(label="Address")
+class Address(Node):
+    id: str = property_field()
+    street: str = property_field()
+    city: str = property_field()
+    state: str = property_field()
+    country: str = property_field()
+    zip_code: str = property_field()
 
 
 @node(label="Person")
 class Person(Node):
-    first_name: str = property_field(index=True)
-    last_name: str = property_field(index=True)
-    age: int = property_field(default=0)
+    first_name: str = property_field(indexed=True)
+    last_name: str = property_field(indexed=True)
+    age: int = property_field()
 
     # EMBEDDED PROPERTY - stored as JSON on the Person node
     contact_info: ContactInfo = embedded_field()
-    tags: List[str] = embedded_field(default_factory=list)
+    tags: List[str] = property_field()
 
     # RELATED NODE PROPERTIES - stored as separate nodes
     home_address: Optional[Address] = related_node_field(
@@ -68,211 +71,114 @@ class Person(Node):
         required=False,
         default=None
     )
-
     work_addresses: List[Address] = related_node_field(
         relationship_type="WORKS_AT_ADDRESS",
-        private=False,  # Public - discoverable in graph traversal
+        private=False,  # Public - discoverable in normal graph traversal
+        required=True,
         default_factory=list
     )
 
 
-@relationship(label="LIVES_IN", direction=RelationshipDirection.OUTGOING)
+@relationship(label="LIVES_IN")
 class LivesIn(Relationship):
     since: datetime
 
 
 async def demonstrate_query_differences():
-    """
-    Show how the same query syntax produces different underlying operations
-    for embedded vs related properties.
-    """
+    print("=== QUERY EXAMPLES: EMBEDDED vs RELATED PROPERTIES (Live) ===\n")
 
-    # Note: This is conceptual - requires actual graph implementation
-    # from graph_model_neo4j import Neo4jGraph
-    # graph = Neo4jGraph("bolt://localhost:7687", "neo4j", "password")
+    # 1. Initialize Neo4j driver
+    print("1. INITIALIZING NEO4J DRIVER")
+    await Neo4jDriver.initialize(
+        uri="neo4j://localhost:7687",
+        user="neo4j",
+        password="password",
+        database="QueryingExamples"
+    )
+    await Neo4jDriver.ensure_database_exists()
+    graph = Neo4jGraph()
+    print("   ✓ Driver initialized\n")
 
-    print("=== QUERY EXAMPLES: EMBEDDED vs RELATED PROPERTIES ===\n")
+    # 0. Clean up database before running
+    print("0. CLEANING UP DATABASE")
+    await graph._driver._driver.execute_query(
+        "MATCH (n) DETACH DELETE n"
+    )
+    print("   ✓ Database cleaned\n")
 
-    # =========================================================================
-    # EMBEDDED PROPERTY QUERIES
-    # =========================================================================
-    print("1. EMBEDDED PROPERTY QUERIES")
-    print("Property stored as JSON on the node\n")
+    # 2. Create sample data
+    print("2. CREATING SAMPLE DATA")
+    addr_portland = Address(id="addr-portland", street="123 Main St", city="Portland", state="OR", country="USA", zip_code="97201")
+    addr_seattle = Address(id="addr-seattle", street="456 Pine St", city="Seattle", state="WA", country="USA", zip_code="98101")
+    addr_boston = Address(id="addr-boston", street="789 Beacon St", city="Boston", state="MA", country="USA", zip_code="02101")
+    alice = Person(
+        id="alice-1",
+        first_name="Alice",
+        last_name="Smith",
+        age=30,
+        contact_info=ContactInfo(id="contact-alice", email="alice@example.com", city="Portland"),
+        tags=["engineer", "python"],
+        home_address=addr_portland,
+        work_addresses=[addr_seattle]
+    )
+    bob = Person(
+        id="bob-2",
+        first_name="Bob",
+        last_name="Jones",
+        age=40,
+        contact_info=ContactInfo(id="contact-bob", email="bob@example.com", city="Boston"),
+        tags=["manager", "java"],
+        home_address=addr_boston,
+        work_addresses=[addr_portland, addr_seattle]
+    )
+    await graph.create_node(addr_portland)
+    await graph.create_node(addr_seattle)
+    await graph.create_node(addr_boston)
+    await graph.create_node(alice)
+    await graph.create_node(bob)
+    print("   ✓ Sample data created\n")
 
-    # Query embedded contact_info.city
-    print("Query: Find people in Portland (embedded contact_info.city)")
-    print("Python syntax:")
-    print("""
-    people_in_portland = await (graph.nodes(Person)
-        .where(lambda p: p.contact_info.city == "Portland")
-        .to_list())
-    """)
+    # 3. Embedded property queries
+    print("3. EMBEDDED PROPERTY QUERIES (Live)")
+    print("People in Portland (embedded contact_info.city):")
+    people_in_portland = await graph.nodes(Person).where(lambda p: p.contact_info.city == "Portland").to_list()
+    for p in people_in_portland:
+        print(f"  {p.first_name} {p.last_name} (city: {p.contact_info.city})")
+    print()
 
-    print("Underlying Cypher translation (requires APOC):")
-    print("""
-    MATCH (p:Person)
-    WHERE apoc.json.path(p.contact_info, '$.city') = "Portland"
-    RETURN p
-    """)
-    print("→ Stores contact_info as JSON string, uses APOC functions to query\n")
+    print("People with 'engineer' tag (embedded list):")
+    engineers = await graph.nodes(Person).where(lambda p: "engineer" in p.tags).to_list()
+    for p in engineers:
+        print(f"  {p.first_name} {p.last_name} (tags: {p.tags})")
+    print()
 
-    # Query embedded list property
-    print("Query: Find people with 'engineer' tag (embedded list)")
-    print("Python syntax:")
-    print("""
-    engineers = await (graph.nodes(Person)
-        .where(lambda p: "engineer" in p.tags)
-        .to_list())
-    """)
+    # 4. Related node property queries
+    print("4. RELATED NODE PROPERTY QUERIES (Live)")
+    print("People in Portland (related home_address.city):")
+    people_in_portland_home = await graph.nodes(Person).where(lambda p: p.home_address.city == "Portland").to_list()
+    for p in people_in_portland_home:
+        print(f"  {p.first_name} {p.last_name} (home city: {p.home_address.city})")
+    print()
 
-    print("Underlying Cypher translation:")
-    print("""
-    MATCH (p:Person)
-    WHERE "engineer" IN p.tags
-    RETURN p
-    """)
-    print("→ Direct array operation on node property\n")
+    print("People who work in Seattle (related work_addresses):")
+    seattle_workers = await graph.nodes(Person).where(lambda p: any(addr.city == "Seattle" for addr in p.work_addresses)).to_list()
+    for p in seattle_workers:
+        print(f"  {p.first_name} {p.last_name} (work cities: {[addr.city for addr in p.work_addresses]})")
+    print()
 
-    # =========================================================================
-    # RELATED NODE PROPERTY QUERIES
-    # =========================================================================
-    print("2. RELATED NODE PROPERTY QUERIES")
-    print("Property stored as separate node with relationship\n")
-
-    # Query related home_address.city (private relationship)
-    print("Query: Find people in Portland (related home_address.city)")
-    print("Python syntax:")
-    print("""
-    people_in_portland = await (graph.nodes(Person)
-        .where(lambda p: p.home_address.city == "Portland")
-        .to_list())
-    """)
-
-    print("Underlying Cypher translation:")
-    print("""
-    MATCH (p:Person)-[:HAS_HOME_ADDRESS]->(addr:Address)
-    WHERE addr.city = "Portland"
-    RETURN p
-    """)
-    print("→ Automatically traverses private relationship to Address node\n")
-
-    # Query related work_addresses (public relationship, list)
-    print("Query: Find people who work in Seattle (related work_addresses)")
-    print("Python syntax:")
-    print("""
-    seattle_workers = await (graph.nodes(Person)
-        .where(lambda p: any(addr.city == "Seattle" for addr in p.work_addresses))
-        .to_list())
-    """)
-
-    print("Underlying Cypher translation:")
-    print("""
-    MATCH (p:Person)-[:WORKS_AT_ADDRESS]->(addr:Address)
-    WHERE addr.city = "Seattle"
-    RETURN DISTINCT p
-    """)
-    print("→ Traverses public relationship, filters on related node\n")
-
-    # =========================================================================
-    # COMPLEX NESTED QUERIES
-    # =========================================================================
-    print("3. COMPLEX NESTED QUERIES")
-    print("Combining embedded and related property filters\n")
-
-    print("Query: Engineers in Portland (embedded tag + related address)")
-    print("Python syntax:")
-    print("""
+    # 5. Complex nested queries
+    print("5. COMPLEX NESTED QUERIES (Live)")
+    print("Engineers in Portland (embedded tag + related address):")
     portland_engineers = await (graph.nodes(Person)
         .where(lambda p: "engineer" in p.tags)
         .where(lambda p: p.home_address.city == "Portland")
         .to_list())
-    """)
+    for p in portland_engineers:
+        print(f"  {p.first_name} {p.last_name} (tags: {p.tags}, home city: {p.home_address.city})")
+    print()
 
-    print("Underlying Cypher translation:")
-    print("""
-    MATCH (p:Person)-[:HAS_HOME_ADDRESS]->(addr:Address)
-    WHERE "engineer" IN p.tags
-      AND addr.city = "Portland"
-    RETURN p
-    """)
-    print("→ Combines JSON property access with relationship traversal\n")
-
-    # =========================================================================
-    # EXPLICIT vs IMPLICIT TRAVERSAL
-    # =========================================================================
-    print("4. EXPLICIT vs IMPLICIT TRAVERSAL")
-    print("Public relationships can be traversed explicitly\n")
-
-    print("Implicit traversal (private relationship - home_address):")
-    print("""
-    # This works but is translated internally
-    people = await (graph.nodes(Person)
-        .where(lambda p: p.home_address.state == "WA")
-        .to_list())
-    """)
-
-    print("Explicit traversal (public relationship - work_addresses):")
-    print("""
-    # This allows explicit graph traversal
-    wa_addresses = await (graph.nodes(Person)
-        .traverse(WorksAtAddress, Address)  # Public relationship
-        .where(lambda addr: addr.state == "WA")
-        .to_list())
-
-    # Or get the people who work at those addresses
-    wa_workers = await (graph.nodes(Address)
-        .where(lambda addr: addr.state == "WA")
-        .traverse(WorksAtAddress, Person, direction=TraversalDirection.INCOMING)
-        .to_list())
-    """)
-
-    # =========================================================================
-    # PERFORMANCE CONSIDERATIONS
-    # =========================================================================
-    print("5. PERFORMANCE CONSIDERATIONS\n")
-
-    print("EMBEDDED PROPERTIES:")
-    print("✓ Faster for simple queries (no joins)")
-    print("✓ Single node read")
-    print("✗ Requires APOC functions for nested property queries")
-    print("✗ Limited indexing on nested properties")
-    print("✗ Cannot query relationships to embedded data")
-    print("✗ Data duplication if same embedded object used multiple times\n")
-
-    print("RELATED NODE PROPERTIES:")
-    print("✓ Full indexing capabilities")
-    print("✓ Can establish relationships to related data")
-    print("✓ Data normalization (no duplication)")
-    print("✓ Can traverse relationships in both directions")
-    print("✗ Requires relationship traversal (more complex queries)")
-    print("✗ Multiple node reads\n")
-
-    # =========================================================================
-    # DESIGN RECOMMENDATIONS
-    # =========================================================================
-    print("6. DESIGN RECOMMENDATIONS\n")
-
-    print("USE EMBEDDED FIELDS FOR:")
-    print("- Small, simple objects (< 5 properties)")
-    print("- Data that's always accessed together")
-    print("- Lists of primitive types")
-    print("- Data that doesn't need complex querying")
-    print("- When you have APOC available for JSON queries")
-    print("- Examples: tags, preferences, simple contact info\n")
-
-    print("EMBEDDED FIELD IMPLEMENTATION OPTIONS:")
-    print("1. JSON String: Store as serialized JSON, query with APOC functions")
-    print("2. Flattened Properties: contact_info_city, contact_info_email")
-    print("3. Map Properties: Direct Cypher map access (limited querying)\n")
-
-    print("USE RELATED NODE FIELDS FOR:")
-    print("- Complex objects that need independent querying")
-    print("- Data that might be shared between entities")
-    print("- Objects that need their own relationships")
-    print("- Data that needs full-text search or complex indexing")
-    print("- Examples: addresses, documents, rich user profiles\n")
+    print("=== Demo Complete ===")
 
 
 if __name__ == "__main__":
-    import asyncio
     asyncio.run(demonstrate_query_differences())

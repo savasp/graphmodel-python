@@ -82,14 +82,14 @@ class Neo4jGraph(IGraph[TNode, TRelationship]):
             # Serialize the node
             serialized = self._serializer.serialize_node(node)
 
-            # Build Cypher query
-            labels_str = ':'.join(serialized.labels)
-            properties_str = ', '.join([f"{k}: ${k}" for k in serialized.properties.keys()])
-
+            # Build Cypher query with explicit property removal
+            properties_str = ', '.join([f"n.{k} = ${k}" for k in serialized.properties.keys()])
             cypher = f"""
-            CREATE (n:{labels_str} {{Id: $id, {properties_str}}})
+            CREATE (n {{Id: $id, {', '.join([f'{k}: ${k}' for k in serialized.properties.keys()])}}})
             RETURN n
             """
+            print(f"DEBUG create_node FINAL Cypher: {cypher}")
+            print(f"DEBUG create_node FINAL params: {serialized.properties}")
 
             # Execute query
             if transaction:
@@ -176,9 +176,9 @@ class Neo4jGraph(IGraph[TNode, TRelationship]):
             # Serialize the node
             serialized = self._serializer.serialize_node(node)
 
-            # Build Cypher query
+            # Build Cypher query with explicit property removal
             properties_str = ', '.join([f"n.{k} = ${k}" for k in serialized.properties.keys()])
-
+            
             cypher = f"""
             MATCH (n {{Id: $id}})
             SET {properties_str}
@@ -457,25 +457,22 @@ class Neo4jGraph(IGraph[TNode, TRelationship]):
         serialized: SerializedNode,
         tx: AsyncTransaction
     ) -> None:
-        """Create complex properties as related nodes."""
+        """Create complex properties as separate nodes with relationships."""
+        print(f"DEBUG _create_complex_properties: node {node.id}, complex_props: {serialized.complex_properties}")
         for field_name, complex_data in serialized.complex_properties.items():
             value = complex_data['value']
             relationship_type = complex_data['relationship_type']
+            private = complex_data['private']
 
-            if value is None:
-                continue
-
-            # Handle single complex property
-            if not isinstance(value, list):
+            if isinstance(value, list):
+                for i, item in enumerate(value):
+                    await self._create_single_complex_property(
+                        node.id, field_name, item, relationship_type, tx, i
+                    )
+            else:
                 await self._create_single_complex_property(
                     node.id, field_name, value, relationship_type, tx
                 )
-            else:
-                # Handle collection of complex properties
-                for i, item in enumerate(value):
-                    await self._create_single_complex_property(
-                        node.id, field_name, item, relationship_type, tx, sequence=i
-                    )
 
     async def _create_single_complex_property(
         self,
@@ -493,6 +490,10 @@ class Neo4jGraph(IGraph[TNode, TRelationship]):
         else:
             props = value.__dict__ if hasattr(value, '__dict__') else {}
 
+        # Ensure the Id field is set correctly
+        if 'id' in props:
+            props['Id'] = props['id']  # Neo4j uses 'Id' as the primary key
+
         # Get the label for the complex node
         label = type(value).__name__
 
@@ -501,6 +502,9 @@ class Neo4jGraph(IGraph[TNode, TRelationship]):
         MATCH (parent {{Id: $parent_id}})
         CREATE (parent)-[r:{relationship_type} {{SequenceNumber: $sequence}}]->(complex:{label} $props)
         """
+
+        print(f"DEBUG _create_single_complex_property: cypher = {cypher}")
+        print(f"DEBUG _create_single_complex_property: params = {{'parent_id': {parent_id}, 'sequence': {sequence}, 'props': {props}}}")
 
         await tx.run(cypher, {  # type: ignore
             "parent_id": parent_id,

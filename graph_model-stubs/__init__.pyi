@@ -1,5 +1,5 @@
 # Type stubs for the graph_model package
-from typing import Any, Type, TypeVar
+from typing import Any, TypeVar
 
 from .core import (
     GraphDataModel,
@@ -13,7 +13,7 @@ from .providers import Neo4jGraph
 
 __all__ = [
     "IEntity",
-    "IGraph", 
+    "IGraph",
     "GraphDataModel",
     "INode",
     "IRelationship",

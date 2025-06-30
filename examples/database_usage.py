@@ -21,12 +21,7 @@ This example demonstrates how to specify different databases when connecting to 
 import asyncio
 from datetime import datetime
 
-from graph_model import (
-    Node,
-    Relationship,
-    node,
-    relationship,
-)
+from graph_model import Node, Relationship, node, relationship
 from graph_model.providers.neo4j import Neo4jDriver, Neo4jGraph
 
 
@@ -93,7 +88,7 @@ async def demonstrate_database_usage():
     )
 
     # Try to create users in different databases
-    databases_to_try = ["neo4j", "myapp", "testdb"]
+    databases_to_try = ["testdatabase1", "testdatabase2", "testdatabase3"]
 
     for db_name in databases_to_try:
         print(f"\n   Trying database: {db_name}")
@@ -104,6 +99,8 @@ async def demonstrate_database_usage():
                 password="password",
                 database=db_name
             )
+
+            await Neo4jDriver.ensure_database_exists()
 
             graph = Neo4jGraph()
 

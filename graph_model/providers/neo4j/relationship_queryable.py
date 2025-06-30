@@ -22,9 +22,7 @@ interface, translating LINQ-style operations to Cypher queries.
 from typing import Any, Callable, Generic, List, Optional, Type, TypeVar
 
 from ...core.relationship import IRelationship
-from ...querying.queryable import (
-    IOrderedGraphRelationshipQueryable,
-)
+from ...querying.queryable import IOrderedGraphRelationshipQueryable
 from .cypher_builder import RelationshipCypherBuilder
 
 R = TypeVar("R", bound=IRelationship)
@@ -165,8 +163,22 @@ class Neo4jRelationshipQueryable(IOrderedGraphRelationshipQueryable[R], Generic[
             return data
         relationships = []
         for record in data:
+            print("DEBUG relationship record:", record)  # Debug print
             if "r" in record:
-                rel = self._relationship_type(**record["r"])
+                rel_data = record["r"]
+                # Handle Neo4j relationship tuple format: (start_node, type, end_node, properties)
+                if isinstance(rel_data, tuple) and len(rel_data) >= 4:
+                    # Extract properties from the tuple
+                    properties = rel_data[3] if len(rel_data) > 3 else {}
+                    # Add required fields for relationship construction
+                    properties['start_node_id'] = rel_data[0].get('id', '') if rel_data[0] else ''
+                    properties['end_node_id'] = rel_data[2].get('id', '') if rel_data[2] else ''
+                    rel = self._relationship_type(**properties)
+                elif isinstance(rel_data, dict):
+                    rel = self._relationship_type(**rel_data)
+                else:
+                    # Skip malformed relationships
+                    continue
             else:
                 rel = self._relationship_type(**record)
             relationships.append(rel)

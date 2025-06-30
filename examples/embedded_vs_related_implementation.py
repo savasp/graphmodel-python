@@ -19,17 +19,18 @@ This shows how our Python graph model library would actually handle
 different storage strategies for complex properties.
 """
 
+import asyncio
 import json
 from dataclasses import dataclass
 from typing import List, Optional
 
-from graph_model import (
-    Node,
+from graph_model import Node, node
+from graph_model.attributes.fields import (
     embedded_field,
-    node,
     property_field,
     related_node_field,
 )
+from graph_model.providers.neo4j import Neo4jDriver, Neo4jGraph
 
 
 @dataclass
@@ -114,230 +115,239 @@ class PersonRelated(Node):
     )
 
 
-def demonstrate_storage_implementations():
+async def demonstrate_storage_implementations():
     """
     Show how different storage approaches would work in practice.
     """
 
     print("=== STORAGE IMPLEMENTATION COMPARISON ===\n")
 
+    # Initialize Neo4j driver
+    print("1. INITIALIZING NEO4J DRIVER")
+    await Neo4jDriver.initialize(
+        uri="neo4j://localhost:7687",
+        user="neo4j",
+        password="password",
+        database="EmbeddedVsRelatedExamples"
+    )
+    await Neo4jDriver.ensure_database_exists()
+    Neo4jGraph()
+    print("   ✓ Driver initialized\n")
+
     # Sample data
     contact = ContactInfo(email="john@example.com", phone="555-1234", city="Portland")
     tags = ["engineer", "python", "neo4j"]
 
+    print("2. CREATING SAMPLE DATA")
+
+    # Create people with different storage approaches
+    john_json = PersonJsonEmbedded(
+        id="john-json-1",
+        first_name="John",
+        last_name="Doe",
+        contact_info=contact,
+        tags=tags
+    )
+
+    jane_flattened = PersonFlattened(
+        id="jane-flattened-2",
+        first_name="Jane",
+        last_name="Smith",
+        contact_info=ContactInfo(email="jane@example.com", city="Seattle"),
+        tags=["developer", "java"]
+    )
+
+    bob_map = PersonMapEmbedded(
+        id="bob-map-3",
+        first_name="Bob",
+        last_name="Johnson",
+        contact_info=ContactInfo(email="bob@example.com", phone="555-5678", city="Austin"),
+        tags=["manager", "leadership"]
+    )
+
+    alice_related = PersonRelated(
+        id="alice-related-4",
+        first_name="Alice",
+        last_name="Brown",
+        contact_info=ContactInfo(email="alice@example.com", city="Boston"),
+        addresses=[
+            Address("123 Home St", "Boston", "MA", "USA", "02101"),
+            Address("456 Work Ave", "Cambridge", "MA", "USA", "02139")
+        ]
+    )
+
+    print(f"   Created John (JSON embedded): {john_json.first_name} {john_json.last_name}")
+    print(f"   Created Jane (Flattened): {jane_flattened.first_name} {jane_flattened.last_name}")
+    print(f"   Created Bob (Map embedded): {bob_map.first_name} {bob_map.last_name}")
+    print(f"   Created Alice (Related nodes): {alice_related.first_name} {alice_related.last_name}")
+
     # ========================================================================
     # JSON STRING STORAGE
     # ========================================================================
-    print("1. JSON STRING STORAGE")
-    print("Python code:")
-    print("""
-    person = PersonJsonEmbedded(
-        first_name="John",
-        contact_info=ContactInfo(email="john@example.com", city="Portland"),
-        tags=["engineer", "python"]
-    )
-    """)
+    print("\n3. JSON STRING STORAGE ANALYSIS")
+    print("   Person: John Doe")
+    print("   Storage: JSON string on node")
 
-    print("Serialized to Neo4j:")
     contact_json = json.dumps(contact.__dict__)
     tags_json = json.dumps(tags)
+    print(f"   Contact info JSON: {contact_json}")
+    print(f"   Tags JSON: {tags_json}")
+
+    print("   Cypher that would be generated:")
     print(f"""
     CREATE (p:PersonJsonEmbedded {{
         first_name: "John",
+        last_name: "Doe",
         contact_info: '{contact_json}',
         tags: '{tags_json}'
     }})
     """)
 
-    print("Query for people in Portland:")
+    print("   Query for people in Portland:")
     print("""
     MATCH (p:PersonJsonEmbedded)
     WHERE apoc.json.path(p.contact_info, '$.city') = "Portland"
     RETURN p
     """)
-
-    print("Pros: Preserves exact object structure")
-    print("Cons: Requires APOC, limited indexing\n")
+    print("   Pros: Preserves exact object structure")
+    print("   Cons: Requires APOC, limited indexing\n")
 
     # ========================================================================
     # FLATTENED PROPERTIES STORAGE
     # ========================================================================
-    print("2. FLATTENED PROPERTIES STORAGE")
-    print("Python code:")
-    print("""
-    person = PersonFlattened(
-        first_name="John",
-        contact_info=ContactInfo(email="john@example.com", city="Portland"),
-        tags=["engineer", "python"]
-    )
-    """)
+    print("4. FLATTENED PROPERTIES STORAGE ANALYSIS")
+    print("   Person: Jane Smith")
+    print("   Storage: Flattened properties on node")
 
-    print("Serialized to Neo4j:")
+    print("   Cypher that would be generated:")
     print("""
     CREATE (p:PersonFlattened {
-        first_name: "John",
-        contact_info_email: "john@example.com",
+        first_name: "Jane",
+        last_name: "Smith",
+        contact_info_email: "jane@example.com",
         contact_info_phone: null,
-        contact_info_city: "Portland",
-        tags: ["engineer", "python"]
+        contact_info_city: "Seattle",
+        tags: ["developer", "java"]
     })
     """)
 
-    print("Query for people in Portland:")
+    print("   Query for people in Seattle:")
     print("""
     MATCH (p:PersonFlattened)
-    WHERE p.contact_info_city = "Portland"
+    WHERE p.contact_info_city = "Seattle"
     RETURN p
     """)
-
-    print("Pros: Standard Cypher, can index individual fields")
-    print("Cons: Property explosion, loses object structure\n")
+    print("   Pros: Standard Cypher, can index individual fields")
+    print("   Cons: Property explosion, loses object structure\n")
 
     # ========================================================================
     # CYPHER MAP STORAGE
     # ========================================================================
-    print("3. CYPHER MAP STORAGE")
-    print("Python code:")
-    print("""
-    person = PersonMapEmbedded(
-        first_name="John",
-        contact_info=ContactInfo(email="john@example.com", city="Portland"),
-        tags=["engineer", "python"]
-    )
-    """)
+    print("5. CYPHER MAP STORAGE ANALYSIS")
+    print("   Person: Bob Johnson")
+    print("   Storage: Cypher map on node")
 
-    print("Serialized to Neo4j:")
+    print("   Cypher that would be generated:")
     print("""
     CREATE (p:PersonMapEmbedded {
-        first_name: "John",
+        first_name: "Bob",
+        last_name: "Johnson",
         contact_info: {
-            email: "john@example.com",
-            phone: null,
-            city: "Portland"
+            email: "bob@example.com",
+            phone: "555-5678",
+            city: "Austin"
         },
-        tags: ["engineer", "python"]
+        tags: ["manager", "leadership"]
     })
     """)
 
-    print("Query for people in Portland (LIMITED):")
+    print("   Query for people in Austin (LIMITED):")
     print("""
     MATCH (p:PersonMapEmbedded)
-    WHERE p.contact_info.city = "Portland"  // This may NOT work!
+    WHERE p.contact_info.city = "Austin"  // This may NOT work!
     RETURN p
 
     // Safer approach:
     MATCH (p:PersonMapEmbedded)
-    WHERE p.contact_info['city'] = "Portland"  // May work in some cases
+    WHERE p.contact_info['city'] = "Austin"  // May work in some cases
     RETURN p
     """)
-
-    print("Pros: Preserves structure, no APOC needed")
-    print("Cons: Very limited querying capabilities\n")
+    print("   Pros: Preserves structure, no APOC needed")
+    print("   Cons: Very limited querying capabilities\n")
 
     # ========================================================================
     # RELATED NODES STORAGE
     # ========================================================================
-    print("4. RELATED NODES STORAGE")
-    print("Python code:")
-    print("""
-    person = PersonRelated(
-        first_name="John",
-        contact_info=ContactInfo(email="john@example.com", city="Portland")
-    )
-    """)
+    print("6. RELATED NODES STORAGE ANALYSIS")
+    print("   Person: Alice Brown")
+    print("   Storage: Separate nodes with relationships")
 
-    print("Serialized to Neo4j:")
+    print("   Cypher that would be generated:")
     print("""
-    CREATE (p:PersonRelated {first_name: "John"})
+    CREATE (p:PersonRelated {first_name: "Alice", last_name: "Brown"})
     CREATE (c:ContactInfo {
-        email: "john@example.com",
+        email: "alice@example.com",
         phone: null,
-        city: "Portland"
+        city: "Boston"
+    })
+    CREATE (a1:Address {
+        street: "123 Home St",
+        city: "Boston",
+        state: "MA",
+        country: "USA",
+        zip_code: "02101"
+    })
+    CREATE (a2:Address {
+        street: "456 Work Ave",
+        city: "Cambridge",
+        state: "MA",
+        country: "USA",
+        zip_code: "02139"
     })
     CREATE (p)-[:HAS_CONTACT_INFO]->(c)
+    CREATE (p)-[:HAS_ADDRESS]->(a1)
+    CREATE (p)-[:HAS_ADDRESS]->(a2)
     """)
 
-    print("Query for people in Portland:")
+    print("   Query for people in Boston:")
     print("""
     MATCH (p:PersonRelated)-[:HAS_CONTACT_INFO]->(c:ContactInfo)
-    WHERE c.city = "Portland"
+    WHERE c.city = "Boston"
     RETURN p
     """)
-
-    print("Pros: Full Cypher power, indexing, relationships")
-    print("Cons: More complex queries, relationship overhead\n")
+    print("   Pros: Full Cypher power, indexing, relationships")
+    print("   Cons: More complex queries, relationship overhead\n")
 
     # ========================================================================
-    # LIBRARY IMPLEMENTATION STRATEGY
+    # COMPARISON SUMMARY
     # ========================================================================
-    print("5. RECOMMENDED LIBRARY IMPLEMENTATION STRATEGY\n")
+    print("7. STORAGE STRATEGY COMPARISON")
+    print("   JSON String (John):")
+    print("   - Contact info: JSON string on node")
+    print("   - Querying: Requires APOC functions")
+    print("   - Indexing: Limited to full-text search")
+    print("   - Performance: Good for reads, slow for complex queries")
 
-    print("For embedded_field(), support multiple storage strategies:")
-    print("""
-    # Default: JSON string (requires APOC but preserves structure)
-    contact_info: ContactInfo = embedded_field()
+    print("\n   Flattened Properties (Jane):")
+    print("   - Contact info: contact_info_email, contact_info_city, etc.")
+    print("   - Querying: Standard Cypher property access")
+    print("   - Indexing: Full indexing on individual fields")
+    print("   - Performance: Excellent for simple queries")
 
-    # Explicit JSON
-    contact_info: ContactInfo = embedded_field(storage="json")
+    print("\n   Cypher Map (Bob):")
+    print("   - Contact info: Native Cypher map object")
+    print("   - Querying: Limited map property access")
+    print("   - Indexing: No indexing on map properties")
+    print("   - Performance: Good for storage, poor for querying")
 
-    # Flattened properties (no APOC needed)
-    contact_info: ContactInfo = embedded_field(storage="flattened")
+    print("\n   Related Nodes (Alice):")
+    print("   - Contact info: Separate ContactInfo node")
+    print("   - Querying: Full graph traversal capabilities")
+    print("   - Indexing: Full indexing on related nodes")
+    print("   - Performance: Excellent for complex queries and analytics")
 
-    # Cypher map (limited querying)
-    contact_info: ContactInfo = embedded_field(storage="map")
-    """)
-
-    print("Query translation should handle storage type automatically:")
-    print("""
-    # Python query (same syntax regardless of storage)
-    people = await (graph.nodes(Person)
-        .where(lambda p: p.contact_info.city == "Portland")
-        .to_list())
-
-    # Translates to appropriate Cypher based on storage type:
-    # JSON: WHERE apoc.json.path(p.contact_info, '$.city') = "Portland"
-    # Flattened: WHERE p.contact_info_city = "Portland"
-    # Map: WHERE p.contact_info['city'] = "Portland"
-    """)
-
-    print("This approach gives developers choice based on their needs:")
-    print("- Use JSON for rich objects when APOC is available")
-    print("- Use flattened for simple objects when APOC isn't available")
-    print("- Use related nodes for complex objects that need full querying")
-
-
-def demonstrate_query_complexity():
-    """
-    Show how query complexity differs between approaches.
-    """
-
-    print("\n=== QUERY COMPLEXITY COMPARISON ===\n")
-
-    # Simple property access
-    print("SIMPLE PROPERTY ACCESS:")
-    print("Python: person.contact_info.city")
-    print("JSON: apoc.json.path(p.contact_info, '$.city')")
-    print("Flattened: p.contact_info_city")
-    print("Map: p.contact_info['city']")
-    print("Related: (p)-[:HAS_CONTACT_INFO]->(c) WHERE c.city\n")
-
-    # Complex nested access
-    print("COMPLEX NESTED ACCESS:")
-    print("Python: person.contact_info.emergency_contact.phone")
-    print("JSON: apoc.json.path(p.contact_info, '$.emergency_contact.phone')")
-    print("Flattened: p.contact_info_emergency_contact_phone")
-    print("Map: p.contact_info['emergency_contact']['phone'] (may not work)")
-    print("Related: (p)-[:HAS_CONTACT_INFO]->(c)-[:HAS_EMERGENCY_CONTACT]->(e) WHERE e.phone\n")
-
-    # Array operations
-    print("ARRAY OPERATIONS:")
-    print("Python: 'engineer' in person.tags")
-    print("JSON: apoc.json.path(p.tags, '$[?(@ == \"engineer\")]')")
-    print("Flattened: 'engineer' IN p.tags")
-    print("Map: 'engineer' IN p.tags")
-    print("Related: (p)-[:HAS_TAG]->(t:Tag {name: 'engineer'})\n")
+    print("\n=== STORAGE IMPLEMENTATION DEMONSTRATION COMPLETE ===")
 
 
 if __name__ == "__main__":
-    demonstrate_storage_implementations()
-    demonstrate_query_complexity()
+    asyncio.run(demonstrate_storage_implementations())

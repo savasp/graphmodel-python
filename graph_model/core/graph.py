@@ -441,7 +441,10 @@ class GraphDataModel:
         if hasattr(field_info, 'json_schema_extra') and field_info.json_schema_extra:
             graph_field_info = field_info.json_schema_extra.get('graph_field_info')
             if graph_field_info:
-                return graph_field_info.field_type.value == "related_node"
+                result = graph_field_info.field_type.value == "related_node"
+                print(f"DEBUG _is_related_node_field: field_info.json_schema_extra={field_info.json_schema_extra}, graph_field_info={graph_field_info}, result={result}")
+                return result
+        print(f"DEBUG _is_related_node_field: field_info has no json_schema_extra or graph_field_info")
         return False
 
     @staticmethod
@@ -475,4 +478,5 @@ class GraphDataModel:
                   GraphDataModel._is_related_node_field(field_info)):
                 complex_props[field_name] = value
 
+        print(f"DEBUG get_simple_and_complex_properties: type={cls.__name__}, simple_props={list(simple_props.keys())}, complex_props={list(complex_props.keys())}")
         return simple_props, complex_props

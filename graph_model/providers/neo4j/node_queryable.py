@@ -26,6 +26,7 @@ from graph_model.attributes.decorators import get_relationship_label
 from ...core.entity import IEntity
 from ...querying.queryable import IOrderedGraphNodeQueryable
 from .cypher_builder import CypherBuilder
+from .serialization import Neo4jSerializer
 
 N = TypeVar("N", bound=IEntity)
 
@@ -194,6 +195,9 @@ class Neo4jNodeQueryable(IOrderedGraphNodeQueryable[N], Generic[N]):
             select_projection=self._select_projection
         )
 
+        print(f"DEBUG node_queryable: cypher_query = {cypher_query.query}")
+        print(f"DEBUG node_queryable: parameters = {cypher_query.parameters}")
+
         # Execute query
         result = await self._session.run(cypher_query.query, cypher_query.parameters)
         data = await result.data()
@@ -201,15 +205,30 @@ class Neo4jNodeQueryable(IOrderedGraphNodeQueryable[N], Generic[N]):
         # Convert results to node objects
         nodes = []
         for record in data:
-            if "n" in record:
-                node = self._node_type(**record["n"])
+            if self._node_type.__name__ == "Person":
+                print("DEBUG Neo4j record (Person):", record)  # Debug print
+            # If this is a projection (select() was used), return the projected data directly
+            if self._select_projection:
+                nodes.append(record)
             else:
-                node = self._node_type(**record)
-            nodes.append(node)
+                if "n" in record:
+                    # Extract complex properties from the record
+                    complex_properties = {}
+                    for field_name in self._cypher_builder.complex_properties.keys():
+                        if field_name in record:
+                            complex_properties[field_name] = record[field_name]
+                    
+                    # Deserialize the node with complex properties
+                    node = Neo4jSerializer.deserialize_node(
+                        record["n"], 
+                        self._node_type, 
+                        complex_properties
+                    )
+                else:
+                    node = self._node_type(**record)
+                nodes.append(node)
 
-        # Apply projection if select() was used
-        if self._select_projection:
-            return [self._select_projection(node) for node in nodes]
+        # Apply projection if select() was used (already handled above)
         return nodes
 
     async def first(self) -> N:

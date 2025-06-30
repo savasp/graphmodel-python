@@ -22,7 +22,7 @@ to Cypher queries, including complex property loading and .NET compatibility.
 import ast
 import inspect
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, List, Optional, Type
+from typing import Any, Callable, Dict, List, Optional, Type, Union
 
 from ...attributes.fields import (
     PropertyFieldType,
@@ -164,7 +164,8 @@ class CypherBuilder:
                         field_info.relationship_type
                     ),
                     'private': field_info.private_relationship,
-                    'field_info': field_info
+                    'field_info': field_info,
+                    'annotation': field.annotation
                 }
 
         return complex_props
@@ -288,10 +289,39 @@ class CypherBuilder:
             relationship_type = complex_data['relationship_type']
             target_alias = f"{field_name}_node"
             rel_alias = f"{field_name}_rel"
-
-            clause = f"""
+            
+            # Get the target node type from the annotation
+            annotation = complex_data.get('annotation')
+            if annotation:
+                # Try to get the target type from the annotation
+                target_type = annotation
+                
+                # Handle Optional[T] -> extract T
+                if hasattr(target_type, '__origin__') and target_type.__origin__ is Union:
+                    # Optional[T] is Union[T, None], so get the first non-None type
+                    args = target_type.__args__
+                    target_type = next((arg for arg in args if arg is not type(None)), target_type)
+                
+                if hasattr(target_type, '__origin__') and target_type.__origin__ is list:
+                    # It's a list, get the inner type
+                    target_type = target_type.__args__[0]
+                
+                # Get the label for the target type
+                if hasattr(target_type, '__graph_labels__'):
+                    target_labels = target_type.__graph_labels__
+                else:
+                    target_labels = [target_type.__name__]
+                
+                target_label_str = ':'.join(target_labels)
+                clause = f"""
+            OPTIONAL MATCH ({self.node_alias})-[{rel_alias}:{relationship_type}]->({target_alias}:{target_label_str})
+            """
+            else:
+                # Fallback without label specification
+                clause = f"""
             OPTIONAL MATCH ({self.node_alias})-[{rel_alias}:{relationship_type}]->({target_alias})
             """
+            
             clauses.append(clause)
 
         return "\n".join(clauses)
@@ -301,11 +331,21 @@ class CypherBuilder:
         if not self.complex_properties:
             return f"WITH {self.node_alias}"
 
-        # Build complex property collection
+        # Build complex property collection - handle single nodes vs lists
         complex_collections = []
-        for field_name in self.complex_properties.keys():
+        for field_name, complex_data in self.complex_properties.items():
             target_alias = f"{field_name}_node"
-            complex_collections.append(f"{target_alias} AS {field_name}")
+            # Check if this is a list field based on the field info
+            field_info = complex_data.get('field_info')
+            print(f"DEBUG _build_with_clause: field {field_name}, field_info: {field_info}")
+            if field_info and hasattr(field_info, 'default_factory') and field_info.default_factory == list:
+                # List field - use COLLECT
+                print(f"DEBUG _build_with_clause: field {field_name} is a LIST")
+                complex_collections.append(f"COLLECT({target_alias}) as {field_name}")
+            else:
+                # Single node field - use first element
+                print(f"DEBUG _build_with_clause: field {field_name} is a SINGLE NODE")
+                complex_collections.append(f"{target_alias} as {field_name}")
 
         complex_part = ", ".join(complex_collections)
         return f"WITH {self.node_alias}, {complex_part}"
@@ -323,16 +363,21 @@ class CypherBuilder:
     def _build_return_clause(self, include_complex_properties: bool = True) -> str:
         """Build RETURN clause."""
         if not include_complex_properties or not self.complex_properties:
-            return f"RETURN {self.node_alias}"
+            return f"RETURN DISTINCT {self.node_alias}"
 
-        # Include complex properties in return
+        # Include complex properties in return - handle lists vs single nodes
         complex_parts = []
-        for field_name in self.complex_properties.keys():
-            target_alias = f"{field_name}_node"
-            complex_parts.append(f"{field_name}: {target_alias}")
+        for field_name, complex_data in self.complex_properties.items():
+            field_info = complex_data.get('field_info')
+            if field_info and hasattr(field_info, 'default_factory') and field_info.default_factory == list:
+                # List field - return as-is without field mapping
+                complex_parts.append(field_name)
+            else:
+                # Single node field - use field mapping syntax
+                complex_parts.append(f"{field_name}: {field_name}")
 
         complex_part = ", ".join(complex_parts)
-        return f"RETURN {self.node_alias}, {complex_part}"
+        return f"RETURN DISTINCT {self.node_alias}, {complex_part}"
 
     def _build_projection_return_clause(self, projection: Callable) -> str:
         """Build RETURN clause for projections."""
@@ -341,7 +386,7 @@ class CypherBuilder:
             tree = ast.parse(source)
             lambda_node = next((n for n in ast.walk(tree) if isinstance(n, ast.Lambda)), None)
             if not lambda_node or not isinstance(lambda_node.body, ast.Dict):
-                return f"RETURN {self.node_alias}"
+                return f"RETURN DISTINCT {self.node_alias}"
 
             # Extract key-value pairs from the dict
             keys = []
@@ -354,11 +399,11 @@ class CypherBuilder:
 
             if keys and values:
                 projections = [f"{val} AS {key}" for key, val in zip(keys, values)]
-                return f"RETURN {', '.join(projections)}"
+                return f"RETURN DISTINCT {', '.join(projections)}"
 
-            return f"RETURN {self.node_alias}"
+            return f"RETURN DISTINCT {self.node_alias}"
         except Exception:
-            return f"RETURN {self.node_alias}"
+            return f"RETURN DISTINCT {self.node_alias}"
 
     def build_count_query(self, where_predicate: Optional[Callable] = None) -> CypherQuery:
         """Build a COUNT query."""
@@ -455,8 +500,14 @@ class RelationshipCypherBuilder:
 
         # Add ORDER BY clause
         if order_by_key:
-            order_clause = self._build_order_by_clause(order_by_key, order_descending)
-            query_parts.append(order_clause)
+            source = CypherBuilder.extract_lambda_source(order_by_key)
+            tree = ast.parse(source)
+            lambda_node = next((n for n in ast.walk(tree) if isinstance(n, ast.Lambda)), None)
+            if lambda_node and isinstance(lambda_node.body, ast.Attribute):
+                field_name = lambda_node.body.attr
+                order_direction = "DESC" if order_descending else "ASC"
+                order_clause = f"ORDER BY {self.rel_alias}.{field_name} {order_direction}"
+                query_parts.append(order_clause)
 
         # Add SKIP clause
         if skip_count is not None:
@@ -576,18 +627,6 @@ class RelationshipCypherBuilder:
         else:
             return "="
 
-    def _build_order_by_clause(self, key_selector: Callable, descending: bool = False) -> str:
-        source = inspect.getsource(key_selector).strip()
-        if source.startswith('@'):
-            source = source.split('\n', 1)[1]
-        tree = ast.parse(source)
-        lambda_node = next((n for n in ast.walk(tree) if isinstance(n, ast.Lambda)), None)
-        if not lambda_node or not isinstance(lambda_node.body, ast.Attribute):
-            return ""
-        field_name = lambda_node.body.attr
-        order_direction = "DESC" if descending else "ASC"
-        return f"ORDER BY {self.rel_alias}.{field_name} {order_direction}"
-
     def _build_relationship_projection_return_clause(self, projection: Callable) -> str:
         """Build RETURN clause for relationship projections."""
         try:
@@ -603,11 +642,9 @@ class RelationshipCypherBuilder:
                     keys.append(key.value)
                 if isinstance(value, ast.Attribute) and isinstance(value.value, ast.Name):
                     values.append(f"{self.rel_alias}.{value.attr}")
-            print(f"DEBUG: projection keys={keys}, values={values}")
             if keys and values:
                 projections = [f"{val} AS {key}" for key, val in zip(keys, values)]
                 return f"RETURN {', '.join(projections)}"
             return f"RETURN {self.rel_alias}"
         except Exception as e:
-            print(f"DEBUG: projection error: {e}")
             return f"RETURN {self.rel_alias}"

@@ -19,6 +19,7 @@ This module handles the mapping between Python objects and Neo4j data structures
 using .NET-compatible conventions for relationship naming and complex properties.
 """
 
+import ast
 import json
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Type
@@ -143,8 +144,9 @@ class Neo4jSerializer:
 
         # Use GraphDataModel to separate simple and complex properties (.NET compatible)
         simple_props, complex_props = GraphDataModel.get_simple_and_complex_properties(node)
+        print(f"DEBUG serialize_node: node type={type(node).__name__}, simple_props={list(simple_props.keys())}, complex_props={list(complex_props.keys())}")
 
-        # Process simple properties - convert enums and handle field metadata
+        # Process simple properties
         processed_simple = {}
         for field_name, field_value in simple_props.items():
             if field_value is None:
@@ -152,23 +154,23 @@ class Neo4jSerializer:
 
             field_info = get_field_info(type(node).model_fields[field_name])  # type: ignore
 
-            if field_info is None:
-                # No field info - treat as simple property with field name as label
-                processed_simple[field_name] = _convert_enum_values(field_value)
-                continue
-
-            if field_info.field_type == PropertyFieldType.SIMPLE:
-                # Simple property - use label or field name
+            if field_info and field_info.field_type == PropertyFieldType.EMBEDDED:
+                # Embedded property - serialize as JSON
                 prop_name = field_info.label or field_name
-                processed_simple[prop_name] = _convert_enum_values(field_value)
-
-            elif field_info.field_type == PropertyFieldType.EMBEDDED:
-                # Embedded property - serialize as JSON (matches .NET behavior)
-                prop_name = field_info.label or field_name
-                if field_info.storage_type == "json":
-                    processed_simple[prop_name] = json.dumps(_convert_enum_values(field_value), default=str)
+                print(f"DEBUG serialize_node: field {field_name}, type {type(field_value)}, value {field_value}")
+                if not hasattr(field_value, 'model_dump'):
+                    raise TypeError(f"Embedded field {field_name} must be a Pydantic model, got {type(field_value)}")
+                processed_simple[prop_name] = json.dumps(field_value.model_dump())
+            elif isinstance(field_value, list):
+                # Store lists as JSON, using model_dump for embedded objects
+                if field_value and hasattr(field_value[0], 'model_dump'):
+                    processed_simple[field_name] = json.dumps([v.model_dump() for v in field_value])
                 else:
-                    processed_simple[prop_name] = _convert_enum_values(field_value)
+                    processed_simple[field_name] = json.dumps(field_value)
+            else:
+                # Simple property
+                prop_name = field_info.label if field_info else field_name
+                processed_simple[prop_name or field_name] = _convert_enum_values(field_value)
 
         # Process complex properties - store metadata for relationship creation
         processed_complex = {}
@@ -287,34 +289,41 @@ class Neo4jSerializer:
         # Extract node properties from record
         node_data = dict(record)
 
-        # Handle complex properties if provided
+        # Remove complex properties from node_data since they should be handled separately
         if complex_properties:
-            for field_name, complex_data in complex_properties.items():
+            for field_name in complex_properties.keys():
                 if field_name in node_data:
-                    # Deserialize complex property
-                    field_info = get_field_info(node_type.model_fields[field_name])  # type: ignore
-                    if field_info and field_info.field_type == PropertyFieldType.EMBEDDED:
-                        if field_info.storage_type == "json":
-                            node_data[field_name] = json.loads(node_data[field_name])
-                    else:
-                        # Related node property - should be handled separately
-                        node_data[field_name] = complex_data
+                    del node_data[field_name]
 
-        # Deserialize embedded JSON properties
+        # Deserialize embedded JSON properties and lists
         for field_name, field_info in node_type.model_fields.items():  # type: ignore
             if field_name in node_data:
                 field_meta = get_field_info(field_info)
-                if (field_meta and
-                    field_meta.field_type == PropertyFieldType.EMBEDDED and
-                    field_meta.storage_type == "json" and
-                    isinstance(node_data[field_name], str)):
+                value = node_data[field_name]
+                # Embedded field as JSON
+                if (field_meta and field_meta.field_type == PropertyFieldType.EMBEDDED and isinstance(value, str)):
+                    print(f"DEBUG deserialize_node: field {field_name}, raw value: {value!r}")
                     try:
-                        node_data[field_name] = json.loads(node_data[field_name])
-                    except (json.JSONDecodeError, TypeError):
-                        # If JSON parsing fails, keep the original value
-                        pass
+                        node_data[field_name] = json.loads(value)
+                    except Exception:
+                        try:
+                            d = ast.literal_eval(value)
+                            if isinstance(d, dict):
+                                node_data[field_name] = d
+                            else:
+                                print(f"ERROR: Could not parse embedded field {field_name} as dict: {value}")
+                                raise ValueError(f"Embedded field {field_name} could not be parsed as dict: {value}")
+                        except Exception as e:
+                            print(f"ERROR: Could not parse embedded field {field_name} as JSON or dict: {value}")
+                            raise ValueError(f"Embedded field {field_name} could not be parsed as JSON or dict: {value}") from e
+                # List field as JSON
+                elif (field_meta and field_meta.field_type == PropertyFieldType.SIMPLE and field_info.annotation in (list, List) and isinstance(value, str)):
+                    try:
+                        node_data[field_name] = json.loads(value)
+                    except Exception:
+                        print(f"ERROR: Could not parse list field {field_name} as JSON: {value}")
+                        raise ValueError(f"List field {field_name} could not be parsed as JSON: {value}")
 
-        # Create node instance
         return node_type(**node_data)
 
     @staticmethod

@@ -1,15 +1,13 @@
 # Type stubs for the attributes module
-from typing import Any, Callable, Optional, Type, TypeVar, Union
-
-from pydantic import Field
+from typing import Any, Callable, TypeVar
 
 T = TypeVar('T')
 
-def node(label: str) -> Callable[[Type[T]], Type[T]]:
+def node(label: str) -> Callable[[type[T]], type[T]]:
     """Decorator to mark a class as a graph node."""
     ...
 
-def relationship(label: str) -> Callable[[Type[T]], Type[T]]:
+def relationship(label: str) -> Callable[[type[T]], type[T]]:
     """Decorator to mark a class as a graph relationship."""
     ...
 
@@ -32,7 +30,7 @@ def related_node_field(**kwargs: Any) -> Any:
 
 __all__ = [
     "node",
-    "relationship", 
+    "relationship",
     "property_field",
     "embedded_field",
     "related_node_field",
