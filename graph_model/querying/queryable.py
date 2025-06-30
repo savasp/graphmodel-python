@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 # Copyright 2025 Savas Parastatidis
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -42,7 +44,7 @@ if TYPE_CHECKING:
 T = TypeVar("T")
 N = TypeVar("N", bound=INode)
 R = TypeVar("R", bound=IRelationship)
-U = TypeVar("U")
+U = TypeVar("U", bound=INode)
 
 # Filter and ordering function types
 FilterFunc = Callable[[T], bool]
@@ -117,7 +119,7 @@ class IGraphQueryable(Protocol[T]):
         """
         ...
 
-    def select(self, selector: ProjectFunc[T, U]) -> "IGraphQueryable[U]":
+    def select(self, selector: ProjectFunc[T, U]) -> "IGraphQueryable[Any]":
         """
         Projects each element to a new form.
         
@@ -270,7 +272,7 @@ class IGraphNodeQueryable(IGraphQueryable[N], Protocol[N]):
         self,
         relationship_type: type[R],
         target_node_type: type[U],
-        direction: Optional["TraversalDirection"] = None
+        direction: Optional["GraphTraversalDirection"] = None
     ) -> "IGraphNodeQueryable[U]":
         """
         Traverses relationships to find connected nodes.
@@ -399,7 +401,7 @@ class QueryableBase(ABC, Generic[T]):
         new_queryable._skip_count = count
         return new_queryable
 
-    def select(self, selector: ProjectFunc[T, U]) -> "QueryableBase[U]":
+    def select(self, selector: ProjectFunc[T, U]) -> "QueryableBase[Any]":
         """Project results to a new form."""
         new_queryable = self._clone()
         new_queryable._projections.append(selector)
@@ -464,10 +466,10 @@ class GraphNodeQueryable(QueryableBase[N]):
         self,
         relationship_type: type[R],
         target_node_type: type[U],
-        direction: Optional["TraversalDirection"] = None
+        direction: Optional["GraphTraversalDirection"] = None
     ) -> "GraphNodeQueryable[U]":
         """Traverse to connected nodes."""
-        from .traversal import TraversalDirection as TD
+        from .traversal import GraphTraversalDirection as TD
         from .traversal import TraversalStep
         
         new_queryable = GraphNodeQueryable(target_node_type, self._transaction)
@@ -569,4 +571,4 @@ class GraphRelationshipQueryable(QueryableBase[R]):
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from .traversal import TraversalDirection, TraversalStep
+    from .traversal import GraphTraversalDirection, TraversalStep

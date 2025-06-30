@@ -22,7 +22,7 @@ along with other traversal operations built on top of it.
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Dict, Generic, List, Optional, Protocol, Type, TypeVar, Union
+from typing import Any, Dict, Generic, List, Optional, Protocol, Type, TypeVar, Union, Sequence
 
 from ..core.node import INode
 from ..core.relationship import IRelationship
@@ -203,7 +203,7 @@ class GraphTraversal:
     
     def __init__(
         self,
-        start_nodes: List[INode],
+        start_nodes: Sequence[INode],
         relationship_type: Optional[Type[IRelationship]] = None,
         target_node_type: Optional[Type[INode]] = None
     ):
@@ -390,7 +390,7 @@ class GraphTraversal:
 
 
 def path_segments(
-    start_nodes: List[TStartNode],
+    start_nodes: Sequence[TStartNode],
     relationship_type: Type[TRelationship],
     target_node_type: Type[TEndNode]
 ) -> GraphTraversal:
@@ -412,7 +412,7 @@ def path_segments(
 
 
 def traverse(
-    start_nodes: List[TStartNode],
+    start_nodes: Sequence[TStartNode],
     relationship_type: Type[TRelationship],
     target_node_type: Type[TEndNode]
 ) -> GraphTraversal:
@@ -434,7 +434,7 @@ def traverse(
 
 
 def traverse_relationships(
-    start_nodes: List[TStartNode],
+    start_nodes: Sequence[TStartNode],
     relationship_type: Type[TRelationship],
     target_node_type: Type[TEndNode]
 ) -> GraphTraversal:
@@ -452,4 +452,14 @@ def traverse_relationships(
     Returns:
         GraphTraversal configured for relationship traversal.
     """
-    return path_segments(start_nodes, relationship_type, target_node_type) 
+    return path_segments(start_nodes, relationship_type, target_node_type)
+
+
+from dataclasses import dataclass
+from typing import Type, Optional
+
+@dataclass
+class TraversalStep:
+    relationship_type: Type[IRelationship]
+    target_node_type: Type[INode]
+    direction: Optional[GraphTraversalDirection] = None
