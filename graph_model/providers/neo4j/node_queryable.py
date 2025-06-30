@@ -19,14 +19,12 @@ This module provides the Neo4j-specific implementation of the node queryable
 interface, translating LINQ-style operations to Cypher queries.
 """
 
-import asyncio
-from typing import Any, Callable, Dict, Generic, List, Optional, Type, TypeVar, Union
+from typing import Any, Callable, Generic, List, Optional, Type, TypeVar
 
 from graph_model.attributes.decorators import get_relationship_label
 
 from ...core.entity import IEntity
-from ...core.node import INode
-from ...querying.queryable import IGraphNodeQueryable, IOrderedGraphNodeQueryable
+from ...querying.queryable import IOrderedGraphNodeQueryable
 from .cypher_builder import CypherBuilder
 
 N = TypeVar("N", bound=IEntity)
@@ -35,15 +33,15 @@ N = TypeVar("N", bound=IEntity)
 class Neo4jNodeQueryable(IOrderedGraphNodeQueryable[N], Generic[N]):
     """
     Neo4j implementation of node queryable interface.
-    
+
     Provides LINQ-style querying capabilities for nodes in Neo4j,
     translating lambda expressions to Cypher queries.
     """
-    
+
     def __init__(self, node_type: Type[N], session: Any):
         """
         Initialize the node queryable.
-        
+
         Args:
             node_type: Type of nodes to query.
             session: Neo4j session for executing queries.
@@ -51,7 +49,7 @@ class Neo4jNodeQueryable(IOrderedGraphNodeQueryable[N], Generic[N]):
         self._node_type = node_type
         self._session = session
         self._cypher_builder = CypherBuilder(node_type)
-        
+
         # Query state
         self._where_predicate: Optional[Callable] = None
         self._order_by_key: Optional[Callable] = None
@@ -62,95 +60,95 @@ class Neo4jNodeQueryable(IOrderedGraphNodeQueryable[N], Generic[N]):
         self._traversal_relationship: Optional[str] = None
         self._traversal_target_type: Optional[Type] = None
         self._traversal_depth: Optional[int] = None
-    
+
     def where(self, predicate: Callable[[N], bool]) -> "Neo4jNodeQueryable[N]":
         """
         Filter nodes based on a predicate.
-        
+
         Args:
             predicate: Lambda expression defining the filter condition.
-        
+
         Returns:
             Self for method chaining.
         """
         self._where_predicate = predicate
         return self
-    
+
     def order_by(self, key_selector: Callable[[N], Any]) -> "Neo4jNodeQueryable[N]":
         """
         Order nodes by a key selector in ascending order.
-        
+
         Args:
             key_selector: Lambda expression defining the sort key.
-        
+
         Returns:
             Self for method chaining.
         """
         self._order_by_key = key_selector
         self._order_descending = False
         return self
-    
+
     def order_by_descending(self, key_selector: Callable[[N], Any]) -> "Neo4jNodeQueryable[N]":
         """
         Order nodes by a key selector in descending order.
-        
+
         Args:
             key_selector: Lambda expression defining the sort key.
-        
+
         Returns:
             Self for method chaining.
         """
         self._order_by_key = key_selector
         self._order_descending = True
         return self
-    
+
     def take(self, count: int) -> "Neo4jNodeQueryable[N]":
         """
         Limit the number of results.
-        
+
         Args:
             count: Maximum number of results to return.
-        
+
         Returns:
             Self for method chaining.
         """
         self._take_limit = count
         return self
-    
+
     def skip(self, count: int) -> "Neo4jNodeQueryable[N]":
         """
         Skip a number of results.
-        
+
         Args:
             count: Number of results to skip.
-        
+
         Returns:
             Self for method chaining.
         """
         self._skip_count = count
         return self
-    
+
     def select(self, selector: Callable[[N], Any]) -> "Neo4jNodeQueryable[Any]":
         """
         Project results using a selector function.
-        
+
         Args:
             selector: Lambda expression defining the projection.
-        
+
         Returns:
             A new queryable with projected results.
         """
         self._select_projection = selector
         return self
-    
+
     def traverse(self, relationship_type, target_type: Type) -> "Neo4jNodeQueryable[N]":
         """
         Traverse relationships to target nodes.
-        
+
         Args:
             relationship_type: Type of relationship to traverse (class or string).
             target_type: Type of target nodes.
-        
+
         Returns:
             Self for method chaining.
         """
@@ -162,24 +160,24 @@ class Neo4jNodeQueryable(IOrderedGraphNodeQueryable[N], Generic[N]):
         self._traversal_relationship = rel_label
         self._traversal_target_type = target_type
         return self
-    
+
     def with_depth(self, depth: int) -> "Neo4jNodeQueryable[N]":
         """
         Set traversal depth for relationship traversal.
-        
+
         Args:
             depth: Maximum traversal depth.
-        
+
         Returns:
             Self for method chaining.
         """
         self._traversal_depth = depth
         return self
-    
+
     async def to_list(self) -> List[N]:
         """
         Execute the query and return results as a list.
-        
+
         Returns:
             List of nodes matching the query criteria.
         """
@@ -195,11 +193,11 @@ class Neo4jNodeQueryable(IOrderedGraphNodeQueryable[N], Generic[N]):
             traversal_target_type=self._traversal_target_type,
             select_projection=self._select_projection
         )
-        
+
         # Execute query
         result = await self._session.run(cypher_query.query, cypher_query.parameters)
         data = await result.data()
-        
+
         # Convert results to node objects
         nodes = []
         for record in data:
@@ -208,19 +206,19 @@ class Neo4jNodeQueryable(IOrderedGraphNodeQueryable[N], Generic[N]):
             else:
                 node = self._node_type(**record)
             nodes.append(node)
-        
+
         # Apply projection if select() was used
         if self._select_projection:
             return [self._select_projection(node) for node in nodes]
         return nodes
-    
+
     async def first(self) -> N:
         """
         Get the first result or raise an exception if none found.
-        
+
         Returns:
             The first node matching the criteria.
-        
+
         Raises:
             Exception: If no results are found.
         """
@@ -228,26 +226,26 @@ class Neo4jNodeQueryable(IOrderedGraphNodeQueryable[N], Generic[N]):
         if not results:
             raise Exception("No results found")
         return results[0]
-    
+
     async def first_or_none(self) -> Optional[N]:
         """
         Get the first result or None if none found.
-        
+
         Returns:
             The first node matching the criteria, or None.
         """
         try:
             return await self.first()
         except Exception:
-            return None 
+            return None
 
     def order_by_desc(self, key_func: Callable[[N], Any]) -> "Neo4jNodeQueryable[N]":
         """
         Orders elements by the specified key function in descending order.
-        
+
         Args:
             key_func: A function that extracts the ordering key from an element.
-        
+
         Returns:
             A new ordered queryable.
         """
@@ -256,7 +254,7 @@ class Neo4jNodeQueryable(IOrderedGraphNodeQueryable[N], Generic[N]):
     async def count(self) -> int:
         """
         Returns the number of elements in the query.
-        
+
         Returns:
             The count of elements.
         """
@@ -268,7 +266,7 @@ class Neo4jNodeQueryable(IOrderedGraphNodeQueryable[N], Generic[N]):
     async def any(self) -> bool:
         """
         Determines whether any elements exist.
-        
+
         Returns:
             True if any elements exist, False otherwise.
         """
@@ -277,10 +275,10 @@ class Neo4jNodeQueryable(IOrderedGraphNodeQueryable[N], Generic[N]):
     async def all(self, predicate: Callable[[N], bool]) -> bool:
         """
         Determines whether all elements satisfy a condition.
-        
+
         Args:
             predicate: A function to test each element for a condition.
-        
+
         Returns:
             True if all elements satisfy the condition, False otherwise.
         """
@@ -292,10 +290,10 @@ class Neo4jNodeQueryable(IOrderedGraphNodeQueryable[N], Generic[N]):
     def group_by(self, key_selector: Callable[[N], Any]) -> "Neo4jNodeQueryable[Any]":
         """
         Groups elements by a key selector function.
-        
+
         Args:
             key_selector: A function that extracts the grouping key from each element.
-        
+
         Returns:
             A new queryable of grouped results.
         """
@@ -307,7 +305,7 @@ class Neo4jNodeQueryable(IOrderedGraphNodeQueryable[N], Generic[N]):
     def aggregate(self) -> Any:
         """
         Creates an aggregation builder for this queryable.
-        
+
         Returns:
             An AggregationBuilder for constructing aggregation queries.
         """
@@ -317,7 +315,7 @@ class Neo4jNodeQueryable(IOrderedGraphNodeQueryable[N], Generic[N]):
     def as_async_queryable(self) -> Any:
         """
         Converts this queryable to an async queryable for streaming operations.
-        
+
         Returns:
             An async queryable for streaming query execution.
         """
@@ -327,7 +325,7 @@ class Neo4jNodeQueryable(IOrderedGraphNodeQueryable[N], Generic[N]):
     def __aiter__(self):
         """
         Returns an async iterator for streaming query results.
-        
+
         Returns:
             Async iterator over query results.
         """
@@ -343,10 +341,10 @@ class Neo4jNodeQueryable(IOrderedGraphNodeQueryable[N], Generic[N]):
     def then_by(self, key_func: Callable[[N], Any]) -> "Neo4jNodeQueryable[N]":
         """
         Performs a subsequent ordering of the elements in ascending order.
-        
+
         Args:
             key_func: A function that extracts the ordering key from an element.
-        
+
         Returns:
             A new ordered queryable with the additional ordering applied.
         """
@@ -358,14 +356,14 @@ class Neo4jNodeQueryable(IOrderedGraphNodeQueryable[N], Generic[N]):
     def then_by_desc(self, key_func: Callable[[N], Any]) -> "Neo4jNodeQueryable[N]":
         """
         Performs a subsequent ordering of the elements in descending order.
-        
+
         Args:
             key_func: A function that extracts the ordering key from an element.
-        
+
         Returns:
             A new ordered queryable with the additional ordering applied.
         """
         # This is a simplified implementation
         new_queryable = Neo4jNodeQueryable(self._node_type, self._session)
         # In practice, you'd add additional ORDER BY DESC to the Cypher builder
-        return new_queryable 
+        return new_queryable

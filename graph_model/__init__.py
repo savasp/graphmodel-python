@@ -40,16 +40,17 @@ from .attributes.fields import (
 )
 from .core.entity import IEntity
 from .core.exceptions import (
-    GraphConnectionException,
-    GraphException,
-    GraphQueryException,
-    GraphTransactionException,
-    GraphValidationException,
+    GraphConnectionError,
+    GraphError,
+    GraphQueryError,
+    GraphTransactionError,
+    GraphValidationError,
 )
 from .core.graph import GraphDataModel, IGraph
 from .core.node import INode, Node
 from .core.relationship import IRelationship, Relationship, RelationshipDirection
 from .core.transaction import IGraphTransaction
+from .providers.neo4j.graph import Neo4jGraph
 
 # Querying interfaces
 from .querying.queryable import (
@@ -71,29 +72,29 @@ __description__ = "A modern Python library for graph databases with .NET compati
 __all__ = [
     # Core interfaces
     "IEntity",
-    "INode", 
+    "INode",
     "Node",
     "IRelationship",
-    "Relationship", 
+    "Relationship",
     "RelationshipDirection",
     "IGraph",
     "IGraphTransaction",
     "GraphDataModel",
-    
+
     # Exceptions
-    "GraphException",
-    "GraphValidationException", 
-    "GraphConnectionException",
-    "GraphQueryException",
-    "GraphTransactionException",
-    
+    "GraphError",
+    "GraphValidationError",
+    "GraphConnectionError",
+    "GraphQueryError",
+    "GraphTransactionError",
+
     # Decorators
     "node",
     "relationship",
-    
+
     # Field types
     "property_field",
-    "embedded_field", 
+    "embedded_field",
     "related_node_field",
     "auto_field",
     "PropertyFieldType",
@@ -101,11 +102,14 @@ __all__ = [
     "get_field_info",
     "determine_field_type_from_annotation",
     "get_relationship_type_for_field",
-    
+
     # Querying
     "IGraphNodeQueryable",
-    "IOrderedGraphNodeQueryable", 
+    "IOrderedGraphNodeQueryable",
     "IGraphRelationshipQueryable",
     "IOrderedGraphRelationshipQueryable",
     "GraphTraversalDirection",
-] 
+
+    # Neo4j Graph
+    "Neo4jGraph",
+]

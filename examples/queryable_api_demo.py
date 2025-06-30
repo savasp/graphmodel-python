@@ -19,7 +19,7 @@ This example demonstrates the LINQ-style queryable API structure and usage patte
 without requiring a database connection. It shows the fluent interface and method chaining.
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Optional
 
 from graph_model import (
     Node,
@@ -50,9 +50,9 @@ class WorksFor(Relationship):
 
 def demonstrate_queryable_api_structure():
     """Demonstrate the queryable API structure and usage patterns"""
-    
+
     print("=== Queryable API Structure Demo ===\n")
-    
+
     # 1. Node Queryable Methods
     print("1. Node Queryable Methods:")
     print("-" * 40)
@@ -69,7 +69,7 @@ def demonstrate_queryable_api_structure():
     print("  .first_or_none()")
     print("  .to_list()")
     print()
-    
+
     # 2. Relationship Queryable Methods
     print("2. Relationship Queryable Methods:")
     print("-" * 40)
@@ -84,49 +84,49 @@ def demonstrate_queryable_api_structure():
     print("  .first_or_none()")
     print("  .to_list()")
     print()
-    
+
     # 3. Example Query Patterns
     print("3. Example Query Patterns:")
     print("-" * 40)
-    
+
     # Basic filtering
     print("Basic filtering:")
     print("  people = await graph.nodes(Person).where(lambda p: p.city == 'Boston').to_list()")
     print()
-    
+
     # Complex filtering
     print("Complex filtering:")
     print("  senior_devs = await graph.nodes(Person).where(")
     print("      lambda p: p.age > 30 and p.city == 'San Francisco'")
     print("  ).to_list()")
     print()
-    
+
     # Sorting
     print("Sorting:")
     print("  people_by_age = await graph.nodes(Person).order_by(lambda p: p.age).to_list()")
     print("  people_by_salary = await graph.nodes(Person).order_by_descending(lambda p: p.age).to_list()")
     print()
-    
+
     # Pagination
     print("Pagination:")
     print("  page_1 = await graph.nodes(Person).take(10).to_list()")
     print("  page_2 = await graph.nodes(Person).skip(10).take(10).to_list()")
     print()
-    
+
     # Projection
     print("Projection:")
     print("  name_age = await graph.nodes(Person).select(")
     print("      lambda p: {'name': p.name, 'age': p.age}")
     print("  ).to_list()")
     print()
-    
+
     # Traversal
     print("Traversal:")
     print("  tech_workers = await graph.nodes(Person).traverse('WORKS_FOR', Company).where(")
     print("      lambda target: target.industry == 'Technology'")
     print("  ).to_list()")
     print()
-    
+
     # Chaining
     print("Chaining:")
     print("  result = await (graph.nodes(Person)")
@@ -135,7 +135,7 @@ def demonstrate_queryable_api_structure():
     print("      .take(5)")
     print("      .to_list())")
     print()
-    
+
     # 4. Relationship Queries
     print("4. Relationship Queries:")
     print("-" * 40)
@@ -147,7 +147,7 @@ def demonstrate_queryable_api_structure():
     print("      lambda r: r.salary")
     print("  ).take(10).to_list()")
     print()
-    
+
     # 5. Error Handling
     print("5. Error Handling:")
     print("-" * 40)
@@ -160,11 +160,11 @@ def demonstrate_queryable_api_structure():
     print("  except Exception as e:")
     print("      print(f'Person not found: {e}')")
     print()
-    
+
     # 6. Advanced Patterns
     print("6. Advanced Patterns:")
     print("-" * 40)
-    
+
     # Nested traversal
     print("Nested traversal:")
     print("  python_devs = await graph.nodes(Person)")
@@ -174,7 +174,7 @@ def demonstrate_queryable_api_structure():
     print("      .where(lambda skill: skill.name == 'Python')")
     print("      .to_list()")
     print()
-    
+
     # Complex projection
     print("Complex projection:")
     print("  summary = await graph.nodes(Person).select(")
@@ -185,7 +185,7 @@ def demonstrate_queryable_api_structure():
     print("      }")
     print("  ).to_list()")
     print()
-    
+
     # Relationship projection
     print("Relationship projection:")
     print("  job_summary = await graph.relationships(WorksFor).select(")
@@ -196,7 +196,7 @@ def demonstrate_queryable_api_structure():
     print("      }")
     print("  ).to_list()")
     print()
-    
+
     print("=== Demo Complete ===")
     print("\nThis demonstrates the fluent, LINQ-style API for querying graph data.")
     print("The API provides type-safe, chainable methods for filtering, sorting,")
@@ -205,10 +205,10 @@ def demonstrate_queryable_api_structure():
 
 def show_api_comparison():
     """Show comparison with traditional approaches"""
-    
+
     print("\n=== API Comparison ===")
     print()
-    
+
     print("Traditional Cypher:")
     print("  MATCH (p:Person)")
     print("  WHERE p.age > 30 AND p.city = 'Boston'")
@@ -216,7 +216,7 @@ def show_api_comparison():
     print("  RETURN p")
     print("  LIMIT 10")
     print()
-    
+
     print("GraphModel LINQ-style:")
     print("  await graph.nodes(Person)")
     print("      .where(lambda p: p.age > 30 and p.city == 'Boston')")
@@ -224,7 +224,7 @@ def show_api_comparison():
     print("      .take(10)")
     print("      .to_list()")
     print()
-    
+
     print("Benefits:")
     print("  ✓ Type-safe lambda expressions")
     print("  ✓ IntelliSense support")
@@ -236,4 +236,4 @@ def show_api_comparison():
 
 if __name__ == "__main__":
     demonstrate_queryable_api_structure()
-    show_api_comparison() 
+    show_api_comparison()

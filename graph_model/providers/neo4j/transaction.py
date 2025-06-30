@@ -35,7 +35,7 @@ class Neo4jTransaction(IGraphTransaction):
         """Check if the transaction is currently active."""
         return self._tx is not None and not self._is_committed and not self._is_rolled_back
 
-    @property 
+    @property
     def is_committed(self) -> bool:
         """Check if the transaction has been committed."""
         return self._is_committed
@@ -78,4 +78,4 @@ class Neo4jTransaction(IGraphTransaction):
     def transaction(self) -> AsyncTransaction:
         if self._tx is None:
             raise RuntimeError("Transaction not started.")
-        return self._tx 
+        return self._tx

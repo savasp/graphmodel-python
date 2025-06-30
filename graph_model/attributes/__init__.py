@@ -21,9 +21,9 @@ __all__ = [
     # Decorators
     "node",
     "relationship",
-    
+
     # Field types
     "property_field",
     "embedded_field",
     "related_node_field",
-] 
+]

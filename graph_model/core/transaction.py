@@ -21,7 +21,7 @@ from typing import Any, Optional, Protocol
 class IGraphTransaction(Protocol):
     """
     Protocol defining the contract for graph transactions.
-    
+
     Provides ACID transaction capabilities for graph operations with
     support for commit, rollback, and context manager usage.
     """
@@ -30,17 +30,17 @@ class IGraphTransaction(Protocol):
     def is_active(self) -> bool:
         """
         Check if the transaction is currently active.
-        
+
         Returns:
             True if the transaction is active and can be used for operations.
         """
         ...
 
-    @property 
+    @property
     def is_committed(self) -> bool:
         """
         Check if the transaction has been committed.
-        
+
         Returns:
             True if the transaction has been successfully committed.
         """
@@ -50,7 +50,7 @@ class IGraphTransaction(Protocol):
     def is_rolled_back(self) -> bool:
         """
         Check if the transaction has been rolled back.
-        
+
         Returns:
             True if the transaction has been rolled back.
         """
@@ -59,25 +59,25 @@ class IGraphTransaction(Protocol):
     async def commit(self) -> None:
         """
         Commit the transaction, making all changes permanent.
-        
+
         Raises:
-            GraphTransactionException: If the commit operation fails.
+            GraphTransactionError: If the commit operation fails.
         """
         ...
 
     async def rollback(self) -> None:
         """
-        Roll back the transaction, discarding all changes.
-        
+        Roll back the transaction, undoing all changes.
+
         Raises:
-            GraphTransactionException: If the rollback operation fails.
+            GraphTransactionError: If the rollback operation fails.
         """
         ...
 
     async def close(self) -> None:
         """
         Close the transaction, automatically rolling back if not committed.
-        
+
         This method is idempotent and safe to call multiple times.
         """
         ...
@@ -87,14 +87,14 @@ class IGraphTransaction(Protocol):
         ...
 
     async def __aexit__(
-        self, 
+        self,
         exc_type: Optional[type],
-        exc_val: Optional[Exception], 
+        exc_val: Optional[Exception],
         exc_tb: Optional[Any]
     ) -> None:
         """
         Exit the async context manager.
-        
+
         Automatically commits the transaction if no exception occurred,
         otherwise rolls back the transaction.
         """
@@ -104,7 +104,7 @@ class IGraphTransaction(Protocol):
 class BaseGraphTransaction(ABC):
     """
     Abstract base class providing common transaction functionality.
-    
+
     Implements the context manager protocol and provides a foundation
     for database-specific transaction implementations.
     """
@@ -148,10 +148,10 @@ class BaseGraphTransaction(ABC):
         """Commit the transaction, making all changes permanent."""
         if not self._is_active:
             raise ValueError("Transaction is not active")
-        
+
         if self._is_committed or self._is_rolled_back:
             raise ValueError("Transaction has already been completed")
-        
+
         try:
             await self._do_commit()
             self._is_committed = True
@@ -159,13 +159,13 @@ class BaseGraphTransaction(ABC):
             self._is_active = False
 
     async def rollback(self) -> None:
-        """Roll back the transaction, discarding all changes."""
+        """Roll back the transaction, undoing all changes."""
         if not self._is_active:
             return  # Already inactive, nothing to rollback
-        
+
         if self._is_committed:
             raise ValueError("Cannot rollback a committed transaction")
-        
+
         try:
             await self._do_rollback()
             self._is_rolled_back = True
@@ -176,10 +176,10 @@ class BaseGraphTransaction(ABC):
         """Close the transaction, automatically rolling back if not committed."""
         if not self._is_active:
             return  # Already closed
-        
+
         if not self._is_committed:
             await self.rollback()
-        
+
         await self._do_close()
 
     async def __aenter__(self) -> "BaseGraphTransaction":
@@ -199,5 +199,5 @@ class BaseGraphTransaction(ABC):
         else:
             # Exception occurred or transaction is not active, rollback
             await self.rollback()
-        
-        await self.close() 
+
+        await self.close()

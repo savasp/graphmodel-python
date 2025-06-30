@@ -14,32 +14,32 @@
 
 """Exception classes for the graph model."""
 
-from typing import Any, Optional
+from typing import Any, Dict, Optional
 
 
-class GraphException(Exception):
+class GraphError(Exception):
     """
     Base exception for all graph-related errors.
-    
+
     This exception is raised when any graph operation fails, including
     database connectivity issues, query errors, and data consistency problems.
     """
 
     def __init__(
-        self, 
-        message: str, 
+        self,
+        message: str,
         cause: Optional[Exception] = None,
-        details: Optional[dict[str, Any]] = None
+        details: Optional[Dict[str, Any]] = None
     ) -> None:
         super().__init__(message)
         self.cause = cause
         self.details = details or {}
 
 
-class GraphValidationException(GraphException):
+class GraphValidationError(GraphError):
     """
     Exception raised when graph entity validation fails.
-    
+
     This includes schema validation, constraint violations, and
     data type mismatches.
     """
@@ -58,28 +58,27 @@ class GraphValidationException(GraphException):
         self.entity_type = entity_type
 
 
-class GraphTransactionException(GraphException):
+class GraphTransactionError(GraphError):
     """Exception raised when transaction operations fail."""
 
     pass
 
 
-class GraphConnectionException(GraphException):
+class GraphConnectionError(GraphError):
     """Exception raised when database connection operations fail."""
 
     pass
 
 
-class GraphQueryException(GraphException):
+class GraphQueryError(GraphError):
     """Exception raised when query operations fail."""
 
     def __init__(
         self,
         message: str,
         query: Optional[str] = None,
-        parameters: Optional[dict[str, Any]] = None,
-        cause: Optional[Exception] = None
+        parameters: Optional[Dict[str, Any]] = None
     ) -> None:
-        super().__init__(message, cause)
+        super().__init__(message)
         self.query = query
-        self.parameters = parameters or {} 
+        self.parameters = parameters or {}

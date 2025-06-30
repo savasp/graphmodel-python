@@ -16,7 +16,7 @@
 Type stubs for Neo4j async driver when proper types are not available.
 """
 
-from typing import Protocol, Any, Optional, Dict, runtime_checkable
+from typing import Any, Dict, Optional, Protocol, runtime_checkable
 
 
 @runtime_checkable
@@ -26,7 +26,7 @@ class AsyncResult(Protocol):
     async def to_list(self) -> list[Any]: ...
 
 
-@runtime_checkable  
+@runtime_checkable
 class AsyncSession(Protocol):
     """Protocol for Neo4j async session."""
     async def run(self, query: str, parameters: Optional[Dict[str, Any]] = None) -> AsyncResult: ...

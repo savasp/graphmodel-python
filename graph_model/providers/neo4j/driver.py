@@ -16,7 +16,7 @@
 Async Neo4j driver and session management for the Python Graph Model library.
 """
 
-from typing import Any, Optional, Tuple, Dict
+from typing import Any, Dict, Optional, Tuple
 
 try:
     from neo4j import AsyncDriver, AsyncGraphDatabase, AsyncSession  # type: ignore
@@ -37,11 +37,11 @@ class Neo4jDriver:
 
     @classmethod
     async def initialize(
-        cls, 
-        uri: str, 
-        user: str, 
-        password: str, 
-        database: Optional[str] = None, 
+        cls,
+        uri: str,
+        user: str,
+        password: str,
+        database: Optional[str] = None,
         **kwargs: Any
     ) -> None:
         if cls._driver is not None:

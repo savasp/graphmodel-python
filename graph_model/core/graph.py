@@ -351,7 +351,7 @@ class GraphDataModel:
         # Check if it's a Pydantic model or has complex properties
         if hasattr(type_hint, 'model_fields'):
             # Pydantic model - check its fields
-            for field_name, field_info in type_hint.model_fields.items():
+            for _field_name, field_info in type_hint.model_fields.items():
                 field_type = field_info.annotation
                 if not GraphDataModel.is_simple_type(field_type) and not GraphDataModel.is_collection_of_simple(field_type):
                     if GraphDataModel.is_complex_type(field_type, depth - 1):
@@ -406,7 +406,7 @@ class GraphDataModel:
         if hasattr(field_info, 'json_schema_extra') and field_info.json_schema_extra:
             graph_field_info = field_info.json_schema_extra.get('graph_field_info')
             if graph_field_info:
-                return graph_field_info.field_type == "embedded"
+                return graph_field_info.field_type.value == "embedded"
         return False
 
     @staticmethod
@@ -421,9 +421,9 @@ class GraphDataModel:
             return {}
 
         complex_props = {}
-        for field_name in cls.model_fields:
-            field_info = obj.__dict__.get(field_name, None)
-            if field_info is None:
+        for field_name, field_info in cls.model_fields.items():
+            value = getattr(obj, field_name, None)
+            if value is None:
                 continue
 
             field_type = field_info.annotation
@@ -431,7 +431,7 @@ class GraphDataModel:
             # Check if it's a complex type or related_node field
             if (GraphDataModel.is_complex_type(field_type) or
                 GraphDataModel._is_related_node_field(field_info)):
-                complex_props[field_name] = field_info
+                complex_props[field_name] = value
 
         return complex_props
 
@@ -441,7 +441,7 @@ class GraphDataModel:
         if hasattr(field_info, 'json_schema_extra') and field_info.json_schema_extra:
             graph_field_info = field_info.json_schema_extra.get('graph_field_info')
             if graph_field_info:
-                return graph_field_info.field_type == "related_node"
+                return graph_field_info.field_type.value == "related_node"
         return False
 
     @staticmethod

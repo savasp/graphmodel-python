@@ -29,14 +29,14 @@ __all__ = [
     "IGraphQueryable",
     "IGraphNodeQueryable",
     "IGraphRelationshipQueryable",
-    
+
     # Base implementations
     "QueryableBase",
-    "GraphNodeQueryable", 
+    "GraphNodeQueryable",
     "GraphRelationshipQueryable",
-    
+
     # Traversal support
     "GraphTraversalDirection",
     "GraphTraversal",
     "IGraphTraversal",
-] 
+]

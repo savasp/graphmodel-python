@@ -76,7 +76,7 @@ class Skill:
 class Person(Node):
     """
     Person entity using auto_field for automatic field type detection.
-    
+
     auto_field automatically chooses the appropriate storage strategy:
     - Simple types → property_field (stored directly on node)
     - Complex types → related_node_field (stored as separate nodes)
@@ -115,7 +115,7 @@ class Person(Node):
 class PersonExplicit(Node):
     """
     Person entity using explicit field types for maximum control.
-    
+
     This approach gives you complete control over storage strategies
     but requires more explicit declarations.
     """
@@ -157,7 +157,7 @@ class PersonExplicit(Node):
 class PersonMixed(Node):
     """
     Person entity using a mixed approach.
-    
+
     Use auto_field for most cases, but override with explicit types
     when you need specific control.
     """

@@ -33,7 +33,7 @@ from .traversal_executor import Neo4jTraversalExecutor
 
 __all__ = [
     "Neo4jDriver",
-    "Neo4jTransaction", 
+    "Neo4jTransaction",
     "Neo4jSerializer",
     "SerializedNode",
     "SerializedRelationship",
@@ -48,4 +48,4 @@ __all__ = [
     "Neo4jAsyncProjectionQueryable",
     "Neo4jAggregationExecutor",
     "Neo4jGroupByQueryable"
-] 
+]
