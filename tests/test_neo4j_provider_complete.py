@@ -24,12 +24,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from graph_model import (
-    Node,
-    Relationship,
-    node,
-    relationship,
-)
+from graph_model import Node, Relationship, node, relationship
 from graph_model.core.graph import GraphDataModel
 from graph_model.providers.neo4j import (
     Neo4jAggregationExecutor,
@@ -39,10 +34,7 @@ from graph_model.providers.neo4j import (
     Neo4jTraversalExecutor,
 )
 from graph_model.querying.aggregation import AggregationBuilder, GroupByResult
-from graph_model.querying.traversal import (
-    GraphTraversal,
-    GraphTraversalDirection,
-)
+from graph_model.querying.traversal import GraphTraversal, GraphTraversalDirection
 
 
 # Test domain models
@@ -438,7 +430,7 @@ class TestNeo4jProviderComplete:
         assert "MATCH (n:Person)" in query.query
         assert "SKIP 5" in query.query
         assert "LIMIT 10" in query.query
-        assert "RETURN n" in query.query
+        assert "RETURN DISTINCT n" in query.query
 
     def test_serialization_compatibility(self):
         """Test serialization compatibility with .NET."""

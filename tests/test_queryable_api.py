@@ -83,7 +83,7 @@ class TestNeo4jNodeQueryable:
         call_args = mock_session.run.call_args[0][0]
         assert "MATCH (n:Person)" in call_args
         assert "WHERE n.name = $name_0" in call_args
-        assert "RETURN n" in call_args
+        assert "RETURN DISTINCT n" in call_args
 
     @pytest.mark.asyncio
     async def test_where_multiple_conditions(self, queryable, mock_session):
@@ -273,7 +273,7 @@ class TestNeo4jNodeQueryable:
 
         # Verify Cypher query
         call_args = mock_session.run.call_args[0][0]
-        assert "RETURN n.name AS name, n.age AS age, n.city AS city" in call_args
+        assert "RETURN DISTINCT n.name AS name, n.age AS age, n.city AS city" in call_args
 
     @pytest.mark.asyncio
     async def test_traverse_relationships(self, queryable, mock_session):
