@@ -5,3 +5,5 @@ include VERSION
 recursive-include docs *
 recursive-include graph_model *
 recursive-include examples *
+# Include type stubs
+recursive-include graph_model-stubs *
