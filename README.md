@@ -29,6 +29,38 @@ pip install graph-model[neo4j]
 pip install graph-model[dev]
 ```
 
+## Local Installation
+
+To install the package locally for development or testing purposes, follow these steps:
+
+1. Clone the repository:
+
+   ```bash
+   git clone https://github.com/graphmodel/python-graphmodel.git
+   cd python-graphmodel
+   ```
+
+2. Set up a virtual environment (optional but recommended):
+
+   ```bash
+   python -m venv .venv
+   source .venv/bin/activate  # On Windows, use .venv\Scripts\activate
+   ```
+
+3. Install the package in editable mode:
+
+   ```bash
+   pip install -e .
+   ```
+
+4. Verify the installation:
+
+   ```python
+   python -c "import graph_model; print('Graph Model installed successfully!')"
+   ```
+
+You can now use the `graph_model` package in your local projects.
+
 ## Quick Start
 
 ### 1. Define Your Domain Model
