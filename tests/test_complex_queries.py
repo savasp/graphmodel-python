@@ -1,8 +1,26 @@
+# Copyright 2025 Savas Parastatidis
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 from datetime import date, datetime
 
 import pytest
 
-from tests.conftest import TestPerson
+from tests.conftest import _models
+
+# Use the new test models
+models = _models()
+TestPerson = models['TestPerson']
 
 
 class TestComplexQueries:
@@ -31,16 +49,16 @@ class TestComplexQueries:
                 birth_date=date(1995, 8, 10)
             )
         ]
-        
+
         # Mock create_node to return each person
         mock_neo4j_graph.create_node.side_effect = people
-        
+
         # Create test data
         created_people = []
         for person in people:
             created_person = await mock_neo4j_graph.create_node(person)
             created_people.append(created_person)
-        
+
         # Verify all nodes were created
         assert len(created_people) == 3
         assert created_people[0].first_name == "Alice"
@@ -70,24 +88,24 @@ class TestComplexQueries:
                 birth_date=date(1995, 8, 10)
             )
         ]
-        
+
         # Mock create_node to return each person
         mock_neo4j_graph.create_node.side_effect = people
-        
+
         # Create test data
         created_people = []
         for person in people:
             created_person = await mock_neo4j_graph.create_node(person)
             created_people.append(created_person)
-        
+
         # Verify all nodes were created
         assert len(created_people) == 3
-        
+
         # Test aggregation logic
         total_age = sum(person.age for person in created_people)
         avg_age = total_age / len(created_people)
         assert total_age == 93  # 30 + 35 + 28
         assert avg_age == 31.0
-        
+
         active_count = sum(1 for person in created_people if person.is_active)
-        assert active_count == 2 
+        assert active_count == 2

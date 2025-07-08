@@ -20,7 +20,6 @@ depending on whether properties are embedded or stored as related nodes.
 """
 
 import asyncio
-from dataclasses import dataclass
 from datetime import datetime
 from typing import List, Optional
 

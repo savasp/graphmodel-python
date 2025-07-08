@@ -16,22 +16,40 @@ A powerful, type-safe Python library for working with graph data structures and 
 - **🏗️ Complex Object Serialization** - Flexible handling of complex properties (embedded vs. related nodes)
 - **🎨 Decorator-Based Configuration** - Configure nodes and relationships using intuitive decorators
 
-## Installation
+## Installation (Recommended: [uv](https://docs.astral.sh/uv/))
+
+First, [install uv](https://docs.astral.sh/uv/):
+
+```bash
+# On macOS with Homebrew:
+brew install uv
+
+# Or via the official script:
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+Then, install the core library and dependencies:
 
 ```bash
 # Core library
-pip install graph-model
+uv sync
 
 # With Neo4j support
-pip install graph-model[neo4j]
+uv sync --all-extras
 
 # Development dependencies
-pip install graph-model[dev]
+uv sync --all-extras --dev
 ```
 
-## Local Installation
+> **Note:** If you prefer, you can still use `pip`:
+>
+> ```bash
+> pip install graph-model
+> pip install graph-model[neo4j]
+> pip install graph-model[dev]
+> ```
 
-To install the package locally for development or testing purposes, follow these steps:
+## Local Installation for Development
 
 1. Clone the repository:
 
@@ -40,26 +58,25 @@ To install the package locally for development or testing purposes, follow these
    cd python-graphmodel
    ```
 
-2. Set up a virtual environment (optional but recommended):
+2. Install all dependencies (including dev):
 
    ```bash
-   python -m venv .venv
-   source .venv/bin/activate  # On Windows, use .venv\Scripts\activate
+   uv sync --all-extras --dev
    ```
 
-3. Install the package in editable mode:
+3. Run tests to verify your setup:
 
    ```bash
-   pip install -e .
+   uv run pytest
    ```
 
-4. Verify the installation:
+4. (Optional) Open a Python shell in the project environment:
 
-   ```python
-   python -c "import graph_model; print('Graph Model installed successfully!')"
+   ```bash
+   uv run python
    ```
 
-You can now use the `graph_model` package in your local projects.
+For more development commands, see [UV_DEVELOPMENT.md](UV_DEVELOPMENT.md) or the Makefile.
 
 ## Quick Start
 

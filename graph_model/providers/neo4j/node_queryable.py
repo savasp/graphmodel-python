@@ -217,11 +217,11 @@ class Neo4jNodeQueryable(IOrderedGraphNodeQueryable[N], Generic[N]):
                     for field_name in self._cypher_builder.complex_properties.keys():
                         if field_name in record:
                             complex_properties[field_name] = record[field_name]
-                    
+
                     # Deserialize the node with complex properties
                     node = Neo4jSerializer.deserialize_node(
-                        record["n"], 
-                        self._node_type, 
+                        record["n"],
+                        self._node_type,
                         complex_properties
                     )
                 else:

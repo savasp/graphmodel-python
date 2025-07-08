@@ -12,18 +12,75 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Decorators for configuring graph model entities."""
+"""
+Decorators for graph model entities.
 
-from typing import Any, Callable, Dict, List, Optional, Type, TypeVar
+This module provides decorators for marking classes as nodes or relationships
+in the graph model, with automatic metadata registration.
+"""
 
-from ..core.node import Node
-from ..core.relationship import Relationship, RelationshipDirection
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    List,
+    Optional,
+    Type,
+    TypeVar,
+    get_args,
+    get_origin,
+)
+
+from pydantic import Field
+
+from ..core import ModelRegistry, Node, Relationship, RelationshipDirection
+from .annotations import Default, Indexed, Required
 
 T = TypeVar("T")
 
 # Registry to store metadata about decorated classes
 _NODE_METADATA: Dict[Type, Dict[str, Any]] = {}
 _RELATIONSHIP_METADATA: Dict[Type, Dict[str, Any]] = {}
+
+
+def _process_field_annotations(cls: Type) -> None:
+    """
+    Process field annotations to convert custom annotations to Pydantic Field configurations.
+    
+    This function looks for Annotated fields with our custom annotations (Default, Required, Indexed)
+    and converts them to Pydantic Field configurations.
+    """
+    import inspect
+
+    # Get all fields from the class
+    for field_name, field_info in cls.model_fields.items():
+        if field_name == 'id':  # Skip the base id field
+            continue
+            
+        annotation = field_info.annotation
+        if get_origin(annotation) is not None and get_origin(annotation).__name__ == 'Annotated':
+            # Extract the base type and metadata from Annotated
+            args = get_args(annotation)
+            base_type = args[0]
+            metadata_list = args[1:]
+            
+            # Process our custom annotations
+            field_kwargs = {}
+            for metadata in metadata_list:
+                if isinstance(metadata, Default):
+                    field_kwargs['default'] = metadata.value
+                elif isinstance(metadata, Required):
+                    field_kwargs['default'] = ...  # Pydantic's way of marking required
+                elif isinstance(metadata, Indexed):
+                    # Store indexing info for later use
+                    if not hasattr(cls, '__graph_indexed_fields__'):
+                        setattr(cls, '__graph_indexed_fields__', [])
+                    cls.__graph_indexed_fields__.append(field_name)
+            
+            # Create a new field with the processed configuration
+            if field_kwargs:
+                new_field = Field(**field_kwargs)
+                setattr(cls, field_name, new_field)
 
 
 def node(
@@ -54,6 +111,10 @@ def node(
     def decorator(cls: Type[T]) -> Type[T]:
         if not issubclass(cls, Node):
             raise TypeError(f"Class {cls.__name__} must inherit from Node")
+        
+        # Process field annotations to convert custom annotations to Pydantic Field
+        _process_field_annotations(cls)
+        
         # Store node metadata
         metadata = {
             "label": label or cls.__name__,
@@ -63,7 +124,10 @@ def node(
         _NODE_METADATA[cls] = metadata
 
         # Add metadata as class attribute for runtime access
-        cls.__graph_node_metadata__ = metadata
+        setattr(cls, '__graph_node_metadata__', metadata)
+
+        # Register with model registry
+        ModelRegistry.register_node_class(cls)
 
         return cls
 
@@ -109,7 +173,10 @@ def relationship(
         _RELATIONSHIP_METADATA[cls] = metadata
 
         # Add metadata as class attribute for runtime access
-        cls.__graph_relationship_metadata__ = metadata
+        setattr(cls, '__graph_relationship_metadata__', metadata)
+
+        # Register with model registry
+        ModelRegistry.register_relationship_class(cls)
 
         return cls
 

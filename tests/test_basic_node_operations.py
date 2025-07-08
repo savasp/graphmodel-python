@@ -1,8 +1,26 @@
+# Copyright 2025 Savas Parastatidis
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 from datetime import date, datetime
 
 import pytest
 
-from tests.conftest import TestPerson
+from tests.conftest import _models
+
+# Use the new test models
+models = _models()
+TestPerson = models['TestPerson']
 
 
 class TestBasicNodeOperations:
@@ -13,10 +31,10 @@ class TestBasicNodeOperations:
         # Mock the create_node to return the person
         mock_neo4j_graph.create_node.return_value = sample_person
         mock_neo4j_graph.get_node.return_value = sample_person
-        
+
         created_person = await mock_neo4j_graph.create_node(sample_person)
         assert created_person.id == sample_person.id
-        
+
         # Test get_node
         read_person = await mock_neo4j_graph.get_node(sample_person.id)
         assert read_person is not None
@@ -29,9 +47,9 @@ class TestBasicNodeOperations:
         # Mock the create_node to return the person
         mock_neo4j_graph.create_node.return_value = sample_person
         mock_neo4j_graph.update_node.return_value = True
-        
+
         created_person = await mock_neo4j_graph.create_node(sample_person)
-        
+
         # Create updated person with same ID
         updated_person = TestPerson(
             id=created_person.id,
@@ -46,7 +64,7 @@ class TestBasicNodeOperations:
             created_at=datetime.now(),
             birth_date=date(1990, 1, 1)
         )
-        
+
         result = await mock_neo4j_graph.update_node(updated_person)
         assert result is True
 
@@ -55,7 +73,7 @@ class TestBasicNodeOperations:
         # Mock the create_node to return the person
         mock_neo4j_graph.create_node.return_value = sample_person
         mock_neo4j_graph.delete_node.return_value = True
-        
+
         created_person = await mock_neo4j_graph.create_node(sample_person)
         result = await mock_neo4j_graph.delete_node(created_person.id)
         assert result is True
@@ -64,7 +82,7 @@ class TestBasicNodeOperations:
     async def test_get_nonexistent_node(self, mock_neo4j_graph):
         # Mock get_node to return None for nonexistent node
         mock_neo4j_graph.get_node.return_value = None
-        
+
         result = await mock_neo4j_graph.get_node("nonexistent-id")
         assert result is None
 
@@ -90,20 +108,19 @@ class TestBasicNodeOperations:
                 birth_date=date(1995, 8, 10)
             )
         ]
-        
+
         # Mock create_node to return each person
         mock_neo4j_graph.create_node.side_effect = people
         mock_neo4j_graph.get_node.return_value = None  # get_node currently returns None
-        
+
         created_people = []
         for person in people:
             created_person = await mock_neo4j_graph.create_node(person)
             created_people.append(created_person)
-        
+
         # Verify all nodes were created
         assert len(created_people) == 3
         for person in created_people:
             assert person.id is not None
             read_person = await mock_neo4j_graph.get_node(person.id)
             assert read_person is None  # For now, just check it doesn't crash
-        

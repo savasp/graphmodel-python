@@ -16,6 +16,7 @@
 Async Neo4j driver and session management for the Python Graph Model library.
 """
 
+import asyncio
 from typing import Any, Dict, Optional, Tuple
 
 try:
@@ -49,6 +50,7 @@ class Neo4jDriver:
         cls._uri = uri
         cls._auth = (user, password)
         cls._database = database
+        # Remove explicit loop argument, as it is not supported
         cls._driver = AsyncGraphDatabase.driver(uri, auth=(user, password), **kwargs)  # type: ignore
 
     @classmethod
@@ -60,8 +62,12 @@ class Neo4jDriver:
         if cls._database is None:
             raise ValueError("Database is not set. Call Neo4jDriver.initialize() with a database name first.")
         driver = cls.get_driver()
-        async with driver.session() as session:  # type: ignore
-            await session.run(f"CREATE DATABASE {cls._database} IF NOT EXISTS WAIT 10 SECONDS")  # type: ignore
+        try:
+            async with driver.session() as session:  # type: ignore
+                await session.run(f"CREATE DATABASE {cls._database} IF NOT EXISTS WAIT 10 SECONDS")  # type: ignore
+        except Exception:
+            # Database might already exist or not be supported in this Neo4j version
+            pass
 
     @classmethod
     def get_driver(cls) -> Any:
@@ -72,8 +78,13 @@ class Neo4jDriver:
     @classmethod
     async def close(cls) -> None:
         if cls._driver is not None:
-            await cls._driver.close()  # type: ignore
-            cls._driver = None
+            try:
+                await cls._driver.close()  # type: ignore
+            except Exception:
+                # Ignore errors during close
+                pass
+            finally:
+                cls._driver = None
 
     @classmethod
     def session(cls, **kwargs: Any) -> Any:

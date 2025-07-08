@@ -12,24 +12,30 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Attributes and decorators for configuring graph model entities."""
+"""
+Annotation-based configuration for graph model fields.
 
-from .annotations import Default, Indexed, Required
-from .decorators import node, relationship
-from .fields import embedded_field, property_field, related_node_field
+This module provides annotation classes that can be used with typing.Annotated
+to configure field behavior in graph models.
+"""
 
-__all__ = [
-    # Decorators
-    "node",
-    "relationship",
+from typing import Any, Generic, TypeVar
 
-    # Field types
-    "property_field",
-    "embedded_field",
-    "related_node_field",
+T = TypeVar('T')
 
-    # Annotation classes
-    "Default",
-    "Indexed",
-    "Required",
-]
+
+class Indexed:
+    """Mark a field for indexing in the graph database."""
+    pass
+
+
+class Required:
+    """Mark a field as required (non-nullable)."""
+    pass
+
+
+class Default(Generic[T]):
+    """Provide a default value for a field."""
+    
+    def __init__(self, value: T):
+        self.value = value 

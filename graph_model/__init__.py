@@ -13,14 +13,13 @@
 # limitations under the License.
 
 """
-Python Graph Model Library
+Graph Model - A Python library for modeling graph data with Neo4j.
 
-A modern Python library for working with graph databases, providing type-safe
-operations, LINQ-style querying, and seamless integration with Neo4j.
-
-This library is designed to be compatible with the .NET GraphModel library,
-allowing Python and .NET applications to read and write the same graph data.
+This library provides a type-safe, annotation-based approach to modeling
+graph data structures with automatic serialization and querying capabilities.
 """
+
+from .attributes import Default, Indexed, Required, node, relationship
 
 # Core interfaces and base classes
 # Decorators for entity configuration
@@ -38,10 +37,24 @@ from .attributes.fields import (
     property_field,
     related_node_field,
 )
+from .core import (
+    FieldInfo,
+    FieldStorageType,
+    GraphError,
+    IEntity,
+    IGraph,
+    INode,
+    IRelationship,
+    ModelRegistry,
+    Node,
+    Relationship,
+    RelationshipDirection,
+    TypeDetector,
+    generate_entity_id,
+)
 from .core.entity import IEntity
 from .core.exceptions import (
     GraphConnectionError,
-    GraphError,
     GraphQueryError,
     GraphTransactionError,
     GraphValidationError,
@@ -70,27 +83,41 @@ __description__ = "A modern Python library for graph databases with .NET compati
 
 # Convenience exports for common use cases
 __all__ = [
-    # Core interfaces
-    "IEntity",
-    "INode",
+    # Core entities
     "Node",
-    "IRelationship",
     "Relationship",
-    "RelationshipDirection",
+    "IEntity", 
+    "INode",
+    "IRelationship",
+    
+    # Graph operations
     "IGraph",
-    "IGraphTransaction",
-    "GraphDataModel",
+    "GraphError",
+    "RelationshipDirection",
+    
+    # Decorators
+    "node",
+    "relationship",
+    
+    # Annotations
+    "Indexed",
+    "Required", 
+    "Default",
+    
+    # Type detection system
+    "TypeDetector",
+    "FieldStorageType",
+    "ModelRegistry",
+    "FieldInfo",
+    
+    # Utilities
+    "generate_entity_id",
 
     # Exceptions
-    "GraphError",
     "GraphValidationError",
     "GraphConnectionError",
     "GraphQueryError",
     "GraphTransactionError",
-
-    # Decorators
-    "node",
-    "relationship",
 
     # Field types
     "property_field",

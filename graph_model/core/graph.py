@@ -300,10 +300,15 @@ class GraphDataModel:
         simple_types = {
             str, int, float, bool, bytes,
             datetime.datetime, datetime.date, datetime.time,
-            uuid.UUID, decimal.Decimal
+            uuid.UUID, decimal.Decimal, dict
         }
 
         if type_hint in simple_types:
+            return True
+
+        # Treat typing.Dict as simple
+        origin = get_origin(type_hint)
+        if origin in (dict, Dict):
             return True
 
         # Handle enums
@@ -444,7 +449,7 @@ class GraphDataModel:
                 result = graph_field_info.field_type.value == "related_node"
                 print(f"DEBUG _is_related_node_field: field_info.json_schema_extra={field_info.json_schema_extra}, graph_field_info={graph_field_info}, result={result}")
                 return result
-        print(f"DEBUG _is_related_node_field: field_info has no json_schema_extra or graph_field_info")
+        print("DEBUG _is_related_node_field: field_info has no json_schema_extra or graph_field_info")
         return False
 
     @staticmethod

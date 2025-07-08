@@ -1,4 +1,3 @@
-from datetime import date, datetime
 
 import pytest
 
@@ -30,17 +29,17 @@ class TestRelatedNodeFields:
             industry="Technology",
             founded_year=2010
         )
-        
+
         # Mock create_node to return each node in sequence
         mock_neo4j_graph.create_node.side_effect = [address, company]
-        
+
         created_address = await mock_neo4j_graph.create_node(address)
         created_company = await mock_neo4j_graph.create_node(company)
-        
+
         # Verify related nodes were created
         assert created_address.street == "123 Work St"
         assert created_company.name == "Tech Corp"
-        
+
         # Create person with related nodes
         person = ComplexPerson(
             first_name="Alice",
@@ -64,13 +63,13 @@ class TestRelatedNodeFields:
             companies=[created_company],
             projects=[]
         )
-        
+
         # Reset mock to return the person
         mock_neo4j_graph.create_node.return_value = person
         mock_neo4j_graph.create_node.side_effect = None
-        
+
         created_person = await mock_neo4j_graph.create_node(person)
-        
+
         # Verify person was created with related nodes
         assert created_person.first_name == "Alice"
         assert created_person.work_address is not None
@@ -94,13 +93,13 @@ class TestRelatedNodeFields:
             industry="Technology",
             founded_year=2010
         )
-        
+
         # Mock create_node to return each node in sequence
         mock_neo4j_graph.create_node.side_effect = [address, company]
-        
+
         created_address = await mock_neo4j_graph.create_node(address)
         created_company = await mock_neo4j_graph.create_node(company)
-        
+
         # Create person with related nodes
         person = ComplexPerson(
             first_name="Bob",
@@ -124,16 +123,16 @@ class TestRelatedNodeFields:
             companies=[created_company],
             projects=[]
         )
-        
+
         # Reset mock to return the person
         mock_neo4j_graph.create_node.return_value = person
         mock_neo4j_graph.create_node.side_effect = None
-        
+
         created_person = await mock_neo4j_graph.create_node(person)
-        
+
         # Verify person was created with related nodes
         assert created_person.first_name == "Bob"
         assert created_person.work_address is not None
         assert created_person.work_address.street == "123 Work St"
         assert len(created_person.companies) == 1
-        assert created_person.companies[0].name == "Tech Corp" 
+        assert created_person.companies[0].name == "Tech Corp"

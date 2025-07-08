@@ -1,8 +1,26 @@
+# Copyright 2025 Savas Parastatidis
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 from datetime import date, datetime
 
 import pytest
 
-from tests.conftest import TestPerson
+from tests.conftest import _models
+
+# Use the new test models
+models = _models()
+TestPerson = models['TestPerson']
 
 
 class TestDataTypes:
@@ -23,10 +41,10 @@ class TestDataTypes:
             created_at=datetime.now(),
             birth_date=date(1993, 5, 20)
         )
-        
+
         # Mock create_node to return the person
         mock_neo4j_graph.create_node.return_value = person
-        
+
         created_person = await mock_neo4j_graph.create_node(person)
         assert created_person.first_name == "José"
         assert created_person.last_name == "O'Connor-Smith"
@@ -52,10 +70,10 @@ class TestDataTypes:
             created_at=datetime.now(),
             birth_date=date(1990, 1, 1)
         )
-        
+
         # Mock create_node to return the person
         mock_neo4j_graph.create_node.return_value = person
-        
+
         created_person = await mock_neo4j_graph.create_node(person)
         assert created_person.first_name == ""
         assert created_person.last_name == ""
@@ -81,12 +99,12 @@ class TestDataTypes:
             created_at=datetime.now(),
             birth_date=date(1993, 5, 20)
         )
-        
+
         # Mock create_node to return the person
         mock_neo4j_graph.create_node.return_value = person
-        
+
         created_person = await mock_neo4j_graph.create_node(person)
         assert created_person.first_name == "José"
         assert created_person.last_name == "O'Connor-Smith"
         assert created_person.email == "test+tag@example.com"
-        assert created_person.tags == ["c++", "c#", "node.js"] 
+        assert created_person.tags == ["c++", "c#", "node.js"]

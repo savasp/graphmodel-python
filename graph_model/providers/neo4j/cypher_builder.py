@@ -289,29 +289,29 @@ class CypherBuilder:
             relationship_type = complex_data['relationship_type']
             target_alias = f"{field_name}_node"
             rel_alias = f"{field_name}_rel"
-            
+
             # Get the target node type from the annotation
             annotation = complex_data.get('annotation')
             if annotation:
                 # Try to get the target type from the annotation
                 target_type = annotation
-                
+
                 # Handle Optional[T] -> extract T
                 if hasattr(target_type, '__origin__') and target_type.__origin__ is Union:
                     # Optional[T] is Union[T, None], so get the first non-None type
                     args = target_type.__args__
                     target_type = next((arg for arg in args if arg is not type(None)), target_type)
-                
+
                 if hasattr(target_type, '__origin__') and target_type.__origin__ is list:
                     # It's a list, get the inner type
                     target_type = target_type.__args__[0]
-                
+
                 # Get the label for the target type
                 if hasattr(target_type, '__graph_labels__'):
                     target_labels = target_type.__graph_labels__
                 else:
                     target_labels = [target_type.__name__]
-                
+
                 target_label_str = ':'.join(target_labels)
                 clause = f"""
             OPTIONAL MATCH ({self.node_alias})-[{rel_alias}:{relationship_type}]->({target_alias}:{target_label_str})
@@ -321,7 +321,7 @@ class CypherBuilder:
                 clause = f"""
             OPTIONAL MATCH ({self.node_alias})-[{rel_alias}:{relationship_type}]->({target_alias})
             """
-            
+
             clauses.append(clause)
 
         return "\n".join(clauses)
@@ -646,5 +646,5 @@ class RelationshipCypherBuilder:
                 projections = [f"{val} AS {key}" for key, val in zip(keys, values)]
                 return f"RETURN {', '.join(projections)}"
             return f"RETURN {self.rel_alias}"
-        except Exception as e:
+        except Exception:
             return f"RETURN {self.rel_alias}"

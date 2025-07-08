@@ -12,34 +12,48 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Core interfaces and base classes for the graph model."""
+"""Core graph model functionality."""
 
-from .entity import IEntity
-from .exceptions import (
-    GraphConnectionError,
-    GraphError,
-    GraphQueryError,
-    GraphTransactionError,
-    GraphValidationError,
+from .entity import IEntity, generate_entity_id
+from .exceptions import GraphError
+from .graph import (
+    IGraph,
+    IGraphNodeQueryable,
+    IGraphRelationshipQueryable,
+    IGraphTransaction,
 )
-from .graph import GraphDataModel, IGraph
+from .model_registry import FieldInfo, ModelRegistry
 from .node import INode, Node
 from .relationship import IRelationship, Relationship, RelationshipDirection
 from .transaction import IGraphTransaction
+from .type_detection import FieldStorageType, TypeDetector
 
 __all__ = [
+    # Entity interfaces
     "IEntity",
-    "INode",
-    "Node",
+    "INode", 
     "IRelationship",
+    
+    # Base implementations
+    "Node",
     "Relationship",
-    "RelationshipDirection",
+    
+    # Graph interfaces
     "IGraph",
-    "GraphDataModel",
+    "IGraphNodeQueryable",
+    "IGraphRelationshipQueryable", 
     "IGraphTransaction",
+    
+    # Enums
+    "RelationshipDirection",
+    
+    # Utilities
+    "generate_entity_id",
     "GraphError",
-    "GraphValidationError",
-    "GraphTransactionError",
-    "GraphConnectionError",
-    "GraphQueryError",
+    
+    # New type detection system
+    "TypeDetector",
+    "FieldStorageType",
+    "ModelRegistry",
+    "FieldInfo",
 ]
